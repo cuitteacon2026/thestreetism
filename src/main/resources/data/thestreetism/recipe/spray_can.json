@@ -1,0 +1,18 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "equipment",
+  "pattern": [
+    "DDD",
+    "DID",
+    "DDD"
+  ],
+  "key": {
+    "D": "#minecraft:dyes",
+    "I": "minecraft:iron_ingot"
+  },
+  "result": {
+    "id": "thestreetism:spray_can",
+    "count": 1
+  }
+}
+
