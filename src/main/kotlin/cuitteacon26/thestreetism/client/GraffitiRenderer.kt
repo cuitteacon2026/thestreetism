@@ -57,7 +57,7 @@ class GraffitiRenderer(context: EntityRendererProvider.Context) : EntityRenderer
         state.facing = entity.facing()
         state.rotation = entity.graffitiRotation()
         state.attachedBlockPos = entity.attachedBlockPos()
-        state.lightCoords = LevelRenderer.getLightCoords(entity.level(), entity.attachedBlockPos())
+        state.lightCoords = LevelRenderer.getLightCoords(entity.level(), entity.attachedBlockPos().relative(entity.facing()))
         //println("Texture=${state.texture}")
     }
 
