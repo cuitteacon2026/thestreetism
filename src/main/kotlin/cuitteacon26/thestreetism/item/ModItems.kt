@@ -4,7 +4,6 @@ import cuitteacon26.thestreetism.Thestreetism
 import cuitteacon26.thestreetism.entity.GraffitiEntity
 import cuitteacon26.thestreetism.graffiti.GraffitiRegistry
 import net.minecraft.core.component.DataComponents
-import net.minecraft.nbt.CompoundTag
 import net.minecraft.resources.Identifier
 import net.minecraft.sounds.SoundEvents
 import net.minecraft.world.InteractionHand
@@ -27,6 +26,7 @@ object ModItems {
 
     val SPRAY_CAN by REGISTRY.registerItem("spray_can", { props -> SprayCanItem(props) }, java.util.function.UnaryOperator<Item.Properties> { it.stacksTo(1).durability(100) })
     val PAINT_SCRAPER by REGISTRY.registerItem("paint_scraper", { props -> PaintScraperItem(props) }, java.util.function.UnaryOperator<Item.Properties> { it.stacksTo(1) })
+    val PIGMENT_BAG by REGISTRY.registerItem("pigment_bag", { props -> PigmentBagItem(props) }, java.util.function.UnaryOperator<Item.Properties> { it.stacksTo(1).durability(5) })
 }
 
 class SprayCanItem(properties: Properties) : Item(properties) {
@@ -35,11 +35,11 @@ class SprayCanItem(properties: Properties) : Item(properties) {
         val player = context.player ?: return InteractionResult.FAIL
         val face = context.clickedFace
         val targetPos = context.clickedPos
-        if (!level.worldBorder.isWithinBounds(targetPos) || !level.hasChunkAt(targetPos) || !player.isWithinBlockInteractionRange(targetPos, 0.0)) {
+        if (!level.worldBorder.isWithinBounds(targetPos) || !level.isLoaded(targetPos) || !player.isWithinBlockInteractionRange(targetPos, 0.0)) {
             return InteractionResult.FAIL
         }
         val state = level.getBlockState(targetPos)
-        if (!state.isSolid) return InteractionResult.FAIL
+        if (!state.isCollisionShapeFullBlock(level, targetPos)) return InteractionResult.FAIL
         if (level.isClientSide) return InteractionResult.SUCCESS
 
         val definition = selectedDefinition(context.itemInHand)
@@ -80,10 +80,13 @@ class SprayCanItem(properties: Properties) : Item(properties) {
         private const val WIDTH_KEY = "thestreetism_graffiti_width"
         private const val HEIGHT_KEY = "thestreetism_graffiti_height"
         private const val LOCAL_SOURCE = "local"
+        private const val DEFAULT_GRAFFITI_SIZE = 1.0f
 
         fun getGraffitiSize(stack: ItemStack): Pair<Float, Float> {
             val data = stack.getOrDefault(DataComponents.CUSTOM_DATA, CustomData.EMPTY).copyTag()
-            return Pair(data.getFloatOr(WIDTH_KEY, 1.0f), data.getFloatOr(HEIGHT_KEY, 1.0f))
+            val width = sanitizeStoredGraffitiSize(data.getFloatOr(WIDTH_KEY, DEFAULT_GRAFFITI_SIZE))
+            val height = sanitizeStoredGraffitiSize(data.getFloatOr(HEIGHT_KEY, DEFAULT_GRAFFITI_SIZE))
+            return Pair(width, height)
         }
 
         fun setGraffitiSelection(stack: ItemStack, source: String, value: String) {
@@ -95,17 +98,20 @@ class SprayCanItem(properties: Properties) : Item(properties) {
 
         fun setGraffitiSize(stack: ItemStack, width: Float, height: Float) {
             CustomData.update(DataComponents.CUSTOM_DATA, stack) { tag ->
-                tag.putFloat(WIDTH_KEY, width)
-                tag.putFloat(HEIGHT_KEY, height)
+                tag.putFloat(WIDTH_KEY, sanitizeStoredGraffitiSize(width))
+                tag.putFloat(HEIGHT_KEY, sanitizeStoredGraffitiSize(height))
             }
+        }
+
+        private fun sanitizeStoredGraffitiSize(size: Float): Float {
+            return if (size.isFinite() && size > 0.0f) size else DEFAULT_GRAFFITI_SIZE
         }
     }
 }
 
 class PaintScraperItem(properties: Properties) : Item(properties) {
     override fun use(level: Level, player: Player, hand: InteractionHand): InteractionResult {
-        val hit = findTargetGraffiti(player)
-        if (hit == null) return InteractionResult.PASS
+        val hit = findTargetGraffiti(player) ?: return InteractionResult.PASS
         if (level.isClientSide) return InteractionResult.SUCCESS
         hit.entity.discard()
         player.swing(hand, true)
@@ -126,5 +132,37 @@ class PaintScraperItem(properties: Properties) : Item(properties) {
             { entity: Entity -> entity is GraffitiEntity && !entity.isRemoved },
             0.0f,
         )
+    }
+}
+
+class PigmentBagItem(properties: Properties) : Item(properties) {
+    override fun use(level: Level, player: Player, hand: InteractionHand): InteractionResult {
+        val pigmentBag = player.getItemInHand(hand)
+        val targets = (0 until player.inventory.containerSize)
+            .map(player.inventory::getItem)
+            .filter(::shouldRestore)
+        if (targets.isEmpty()) return InteractionResult.PASS
+        if (level.isClientSide) return InteractionResult.SUCCESS
+
+        targets.forEach(::restoreDurability)
+        pigmentBag.hurtAndBreak(1, player, hand)
+        player.swing(hand, true)
+        level.playSound(null, player.x, player.y, player.z, SoundEvents.DYE_USE, player.soundSource, 1.0f, 1.0f)
+        return InteractionResult.SUCCESS
+    }
+
+    private fun shouldRestore(stack: ItemStack): Boolean {
+        if (stack.item != ModItems.SPRAY_CAN) return false
+        val remainingDurability = stack.maxDamage - stack.damageValue
+        return remainingDurability < MIN_TARGET_DURABILITY
+    }
+
+    private fun restoreDurability(stack: ItemStack) {
+        stack.damageValue = (stack.damageValue - RESTORE_AMOUNT).coerceAtLeast(0)
+    }
+
+    companion object {
+        private const val MIN_TARGET_DURABILITY = 75
+        private const val RESTORE_AMOUNT = 25
     }
 }

@@ -117,9 +117,9 @@ class GraffitiEntity(type: EntityType<out GraffitiEntity>, level: Level) : Entit
 
     fun setTextureKey(key: String) = entityData.set(DATA_TEXTURE_ID, key)
 
-    fun setWidth(width: Float) = entityData.set(DATA_WIDTH, width)
+    fun setWidth(width: Float) = entityData.set(DATA_WIDTH, sanitizeStoredGraffitiSize(width))
 
-    fun setHeight(height: Float) = entityData.set(DATA_HEIGHT, height)
+    fun setHeight(height: Float) = entityData.set(DATA_HEIGHT, sanitizeStoredGraffitiSize(height))
 
     fun setFacing(facing: Direction) = entityData.set(DATA_FACING, facing)
 
@@ -208,7 +208,7 @@ class GraffitiEntity(type: EntityType<out GraffitiEntity>, level: Level) : Entit
     override fun getPickResult(): ItemStack = ItemStack.EMPTY
 
     private fun updateBoundingBox() {
-        setBoundingBox(thinSurfaceBoundingBox(position()))
+        boundingBox = thinSurfaceBoundingBox(position())
     }
 
     private fun thinSurfaceBoundingBox(position: Vec3): AABB {
@@ -236,5 +236,9 @@ class GraffitiEntity(type: EntityType<out GraffitiEntity>, level: Level) : Entit
         private val DATA_ROTATION: EntityDataAccessor<Float> = SynchedEntityData.defineId(GraffitiEntity::class.java, EntityDataSerializers.FLOAT)
         private val DATA_OWNER: EntityDataAccessor<Optional<UUID>> = SynchedEntityData.defineId(GraffitiEntity::class.java, ModEntityDataSerializers.OPTIONAL_UUID)
         private val DATA_ATTACHED_BLOCK_POS: EntityDataAccessor<BlockPos> = SynchedEntityData.defineId(GraffitiEntity::class.java, EntityDataSerializers.BLOCK_POS)
+
+        private fun sanitizeStoredGraffitiSize(size: Float): Float {
+            return if (size.isFinite() && size > 0.0f) size else 1.0f
+        }
     }
 }
