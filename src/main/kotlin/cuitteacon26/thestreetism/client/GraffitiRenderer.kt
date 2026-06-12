@@ -18,25 +18,30 @@ import net.minecraft.client.renderer.rendertype.RenderTypes
 import net.minecraft.client.renderer.state.level.CameraRenderState
 import net.minecraft.client.renderer.texture.OverlayTexture
 import net.minecraft.core.Direction
+import net.minecraft.resources.Identifier
 import net.minecraft.world.phys.BlockHitResult
 import net.minecraft.world.phys.HitResult
+import net.neoforged.api.distmarker.Dist
 import net.neoforged.bus.api.SubscribeEvent
-import net.neoforged.neoforge.client.event.EntityRenderersEvent
+import net.neoforged.fml.common.EventBusSubscriber
+import net.neoforged.fml.event.lifecycle.FMLClientSetupEvent
 import net.neoforged.neoforge.client.event.SubmitCustomGeometryEvent
 import net.neoforged.neoforge.common.NeoForge
 
 object ClientSetup {
-    fun registerEntityRenderers(event: EntityRenderersEvent.RegisterRenderers) {
-        event.registerEntityRenderer(ModEntities.GRAFFITI, ::GraffitiRenderer)
+    fun register() {
+        NeoForge.EVENT_BUS.register(GraffitiPreviewRenderer)
     }
 
-    fun registerGameEvents() {
-        NeoForge.EVENT_BUS.register(GraffitiPreviewRenderer)
+    fun onClientSetup(event: FMLClientSetupEvent) {
+        event.enqueueWork {
+            net.minecraft.client.renderer.entity.EntityRenderers.register(ModEntities.GRAFFITI, ::GraffitiRenderer)
+        }
     }
 }
 
 class GraffitiRenderState : EntityRenderState() {
-    lateinit var texture: net.minecraft.resources.Identifier
+    var texture: Identifier = PREVIEW_CENTER_TEXTURE
     var width = 1.0f
     var height = 1.0f
     var facing = Direction.NORTH
@@ -58,7 +63,6 @@ class GraffitiRenderer(context: EntityRendererProvider.Context) : EntityRenderer
         state.rotation = entity.graffitiRotation()
         state.attachedBlockPos = entity.attachedBlockPos()
         state.lightCoords = LevelRenderer.getLightCoords(entity.level(), entity.attachedBlockPos().relative(entity.facing()))
-        //println("Texture=${state.texture}")
     }
 
     override fun submit(state: GraffitiRenderState, poseStack: PoseStack, submitNodeCollector: SubmitNodeCollector, camera: CameraRenderState) {
@@ -69,10 +73,10 @@ class GraffitiRenderer(context: EntityRendererProvider.Context) : EntityRenderer
         submitQuad(poseStack, submitNodeCollector, RenderTypes.entityTranslucentCullItemTarget(state.texture), state.width, state.height, state.lightCoords, -1)
         poseStack.popPose()
         super.submit(state, poseStack, submitNodeCollector, camera)
-        //println("Facing = ${state.facing}")
     }
 }
 
+@EventBusSubscriber(modid = Thestreetism.ID, value = [Dist.CLIENT])
 object GraffitiPreviewRenderer {
     @SubscribeEvent
     fun onSubmitCustomGeometry(event: SubmitCustomGeometryEvent) {
@@ -89,7 +93,7 @@ object GraffitiPreviewRenderer {
             else -> return
         }
         val size = SprayCanItem.getGraffitiSize(sprayCan)
-        val valid = level.getBlockState(hit.blockPos).isSolid && player.isWithinBlockInteractionRange(hit.blockPos, 0.0)
+        val valid = level.getBlockState(hit.blockPos).isCollisionShapeFullBlock(level, hit.blockPos) && player.isWithinBlockInteractionRange(hit.blockPos, 0.0)
         val position = hit.location
         val camera = event.levelRenderState.cameraRenderState.pos
         val color = if (valid) 0x6600FF00 else 0x66FF0000
@@ -105,10 +109,10 @@ object GraffitiPreviewRenderer {
         poseStack.popPose()
     }
 
-    private val PREVIEW_TEXTURE = net.minecraft.resources.Identifier.fromNamespaceAndPath(Thestreetism.ID, "textures/graffiti/prev.png")
+    private val PREVIEW_TEXTURE = Identifier.fromNamespaceAndPath(Thestreetism.ID, "textures/graffiti/prev.png")
 }
 
-private val PREVIEW_TEXTURE = net.minecraft.resources.Identifier.fromNamespaceAndPath(Thestreetism.ID, "textures/graffiti/prevcent.png")
+private val PREVIEW_CENTER_TEXTURE = Identifier.fromNamespaceAndPath(Thestreetism.ID, "textures/graffiti/prevcent.png")
 
 private fun translateRenderOffset(poseStack: PoseStack, facing: Direction) {
     poseStack.translate(facing.stepX * 0.02, facing.stepY * 0.02, facing.stepZ * 0.02)
@@ -165,7 +169,7 @@ private fun submitCenterIndicator(
     color: Int,
 ) {
     val size = 0.12f
-    collector.submitCustomGeometry(poseStack, RenderTypes.entityTranslucent(PREVIEW_TEXTURE, false)) { pose, buffer ->
+    collector.submitCustomGeometry(poseStack, RenderTypes.entityTranslucent(PREVIEW_CENTER_TEXTURE, false)) { pose, buffer ->
         vertex(pose, buffer, -size,  size, 1f, 0f, light, color)
         vertex(pose, buffer,  size,  size, 0f, 0f, light, color)
         vertex(pose, buffer,  size, -size, 0f, 1f, light, color)

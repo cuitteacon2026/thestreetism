@@ -5,6 +5,7 @@ import com.mojang.blaze3d.platform.NativeImage
 import net.minecraft.client.Minecraft
 import net.minecraft.client.renderer.texture.DynamicTexture
 import net.minecraft.resources.Identifier
+import java.net.HttpURLConnection
 import java.net.URI
 import java.security.MessageDigest
 import java.util.Locale
@@ -88,7 +89,7 @@ object GraffitiTextures {
 
                             loaded[url] = textureId
 
-                            Minecraft.getInstance().levelRenderer?.allChanged()
+                            Minecraft.getInstance().levelRenderer.allChanged()
 
                             Thestreetism.LOGGER.info(
                                 "Loaded remote graffiti texture {}",
@@ -123,17 +124,26 @@ object GraffitiTextures {
 
     private fun download(url: String): NativeImage {
         val uri = URI(url)
-
-        require(
-            uri.scheme == "http" ||
-                    uri.scheme == "https"
-        ) {
+        val scheme = uri.scheme?.lowercase(Locale.ROOT)
+        require(scheme == "http" || scheme == "https") {
             "Only HTTP/HTTPS URLs are supported"
         }
 
-        return uri.toURL()
-            .openStream()
-            .use(NativeImage::read)
+        val connection = uri.toURL().openConnection() as HttpURLConnection
+        connection.instanceFollowRedirects = true
+        connection.connectTimeout = CONNECT_TIMEOUT_MILLIS
+        connection.readTimeout = READ_TIMEOUT_MILLIS
+        connection.setRequestProperty("User-Agent", USER_AGENT)
+        connection.requestMethod = "GET"
+        connection.doInput = true
+
+        return try {
+            connection.inputStream.buffered().use { stream ->
+                NativeImage.read(LimitedInputStream(stream, MAX_DOWNLOAD_BYTES))
+            }
+        } finally {
+            connection.disconnect()
+        }
     }
 
     private fun sha256(value: String): String {
@@ -145,4 +155,41 @@ object GraffitiTextures {
             "%02x".format(Locale.ROOT, it)
         }
     }
+
+    private class LimitedInputStream(
+        private val delegate: java.io.InputStream,
+        private val maxBytes: Long,
+    ) : java.io.InputStream() {
+        private var bytesRead = 0L
+
+        override fun read(): Int {
+            val value = delegate.read()
+            if (value >= 0) {
+                incrementBytesRead(1)
+            }
+            return value
+        }
+
+        override fun read(b: ByteArray, off: Int, len: Int): Int {
+            val value = delegate.read(b, off, len)
+            if (value > 0) {
+                incrementBytesRead(value.toLong())
+            }
+            return value
+        }
+
+        override fun close() = delegate.close()
+
+        private fun incrementBytesRead(count: Long) {
+            bytesRead += count
+            check(bytesRead <= maxBytes) {
+                "Remote graffiti texture exceeds $maxBytes bytes"
+            }
+        }
+    }
+
+    private const val CONNECT_TIMEOUT_MILLIS = 5_000
+    private const val READ_TIMEOUT_MILLIS = 10_000
+    private const val MAX_DOWNLOAD_BYTES = 8L * 1024L * 1024L
+    private const val USER_AGENT = "thestreetism-graffiti-loader"
 }

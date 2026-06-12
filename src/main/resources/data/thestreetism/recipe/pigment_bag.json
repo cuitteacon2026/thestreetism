@@ -1,0 +1,17 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "tools",
+  "pattern": [
+    "DDD",
+    "DPD",
+    "DDD"
+  ],
+  "key": {
+    "D": "#minecraft:dyes",
+    "P": "minecraft:paper"
+  },
+  "result": {
+    "id": "thestreetism:pigment_bag",
+    "count": 1
+  }
+}
