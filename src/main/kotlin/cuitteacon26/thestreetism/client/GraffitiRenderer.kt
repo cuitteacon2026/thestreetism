@@ -105,10 +105,10 @@ object GraffitiPreviewRenderer {
         poseStack.popPose()
     }
 
-    private val PREVIEW_TEXTURE = net.minecraft.resources.Identifier.fromNamespaceAndPath(Thestreetism.ID, "textures/graffiti/graffiti_01.png")
+    private val PREVIEW_TEXTURE = net.minecraft.resources.Identifier.fromNamespaceAndPath(Thestreetism.ID, "textures/graffiti/prev.png")
 }
 
-private val PREVIEW_TEXTURE = net.minecraft.resources.Identifier.fromNamespaceAndPath(Thestreetism.ID, "textures/graffiti/graffiti_01.png")
+private val PREVIEW_TEXTURE = net.minecraft.resources.Identifier.fromNamespaceAndPath(Thestreetism.ID, "textures/graffiti/prevcent.png")
 
 private fun translateRenderOffset(poseStack: PoseStack, facing: Direction) {
     poseStack.translate(facing.stepX * 0.02, facing.stepY * 0.02, facing.stepZ * 0.02)
