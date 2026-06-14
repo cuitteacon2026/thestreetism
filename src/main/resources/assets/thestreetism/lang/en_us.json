@@ -2,6 +2,8 @@
   "item.thestreetism.spray_can": "Spray Can",
   "item.thestreetism.paint_scraper": "Paint Scraper",
   "item.thestreetism.pigment_bag": "Pigment Bag",
+  "item.thestreetism.banner": "Street Banner",
   "entity.thestreetism.graffiti": "Graffiti",
+  "entity.thestreetism.banner": "Street Banner",
   "itemGroup.thestreetism.thestreetism": "TheStreetism"
 }

@@ -1,0 +1,17 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "equipment",
+  "pattern": [
+    " S ",
+    "WWW",
+    " W "
+  ],
+  "key": {
+    "S": "minecraft:stick",
+    "W": "#minecraft:wool"
+  },
+  "result": {
+    "id": "thestreetism:banner",
+    "count": 1
+  }
+}

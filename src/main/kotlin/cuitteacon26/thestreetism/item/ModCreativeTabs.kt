@@ -12,16 +12,17 @@ import thedarkcolour.kotlinforforge.neoforge.forge.getValue
 object ModCreativeTabs {
     val REGISTRY: DeferredRegister<CreativeModeTab> = DeferredRegister.create(Registries.CREATIVE_MODE_TAB, Thestreetism.ID)
 
-    /*val THESTREETISM by REGISTRY.register("thestreetism", java.util.function.Supplier {
+    val THESTREETISM by REGISTRY.register("thestreetism", java.util.function.Supplier {
         CreativeModeTab.builder()
             .title(Component.translatable("itemGroup.thestreetism.thestreetism"))
-            .icon { ItemStack(ModItems.SPRAY_CAN) }
+            .icon { ItemStack(ModItems.BANNER) }
             .displayItems { _, output ->
                 output.accept(ModItems.SPRAY_CAN)
                 output.accept(ModItems.PAINT_SCRAPER)
                 output.accept(ModItems.PIGMENT_BAG)
+                output.accept(ModItems.BANNER)
             }
             .withTabsBefore(Identifier.withDefaultNamespace("spawn_eggs"))
             .build()
-    }) */
+    })
 }

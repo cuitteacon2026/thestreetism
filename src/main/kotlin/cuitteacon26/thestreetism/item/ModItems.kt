@@ -1,8 +1,13 @@
 package cuitteacon26.thestreetism.item
 
 import cuitteacon26.thestreetism.Thestreetism
+import cuitteacon26.thestreetism.banner.BannerGeometry
+import cuitteacon26.thestreetism.banner.BannerTextAlignment
+import cuitteacon26.thestreetism.entity.BannerEntity
 import cuitteacon26.thestreetism.entity.GraffitiEntity
 import cuitteacon26.thestreetism.graffiti.GraffitiRegistry
+import net.minecraft.core.BlockPos
+import net.minecraft.core.Direction
 import net.minecraft.core.component.DataComponents
 import net.minecraft.resources.Identifier
 import net.minecraft.sounds.SoundEvents
@@ -27,6 +32,7 @@ object ModItems {
     val SPRAY_CAN by REGISTRY.registerItem("spray_can", { props -> SprayCanItem(props) }, java.util.function.UnaryOperator<Item.Properties> { it.stacksTo(1).durability(100) })
     val PAINT_SCRAPER by REGISTRY.registerItem("paint_scraper", { props -> PaintScraperItem(props) }, java.util.function.UnaryOperator<Item.Properties> { it.stacksTo(1) })
     val PIGMENT_BAG by REGISTRY.registerItem("pigment_bag", { props -> PigmentBagItem(props) }, java.util.function.UnaryOperator<Item.Properties> { it.stacksTo(1).durability(5) })
+    val BANNER by REGISTRY.registerItem("banner", { props -> BannerItem(props) }, java.util.function.UnaryOperator<Item.Properties> { it.stacksTo(1).durability(100) })
 }
 
 class SprayCanItem(properties: Properties) : Item(properties) {
@@ -109,6 +115,144 @@ class SprayCanItem(properties: Properties) : Item(properties) {
     }
 }
 
+class BannerItem(properties: Properties) : Item(properties) {
+    override fun useOn(context: UseOnContext): InteractionResult {
+        val level = context.level
+        val player = context.player ?: return InteractionResult.FAIL
+        val targetPos = context.clickedPos
+        val clickedAnchor = BannerGeometry.Anchor(targetPos, context.clickedFace)
+        if (!level.worldBorder.isWithinBounds(targetPos) || !level.isLoaded(targetPos) || !player.isWithinBlockInteractionRange(targetPos, 0.0)) {
+            clearPlacement(context.itemInHand)
+            return InteractionResult.FAIL
+        }
+
+        val blockState = level.getBlockState(targetPos)
+        if (!blockState.isCollisionShapeFullBlock(level, targetPos) || !BannerGeometry.isValidAnchorFace(clickedAnchor.face)) {
+            clearPlacement(context.itemInHand)
+            return InteractionResult.FAIL
+        }
+
+        val placement = getPlacementState(context.itemInHand)
+        if (placement.anchorA == null) {
+            setAnchorA(context.itemInHand, clickedAnchor)
+            player.swing(context.hand, true)
+            level.playSound(null, context.clickLocation.x, context.clickLocation.y, context.clickLocation.z, SoundEvents.DYE_USE, player.soundSource, 0.8f, 1.2f)
+            return InteractionResult.SUCCESS
+        }
+
+        if (placement.anchorB == null) {
+            if (!BannerGeometry.canShareSurface(placement.anchorA, clickedAnchor)) {
+                return InteractionResult.FAIL
+            }
+            setAnchorB(context.itemInHand, clickedAnchor)
+            player.swing(context.hand, true)
+            level.playSound(null, context.clickLocation.x, context.clickLocation.y, context.clickLocation.z, SoundEvents.DYE_USE, player.soundSource, 0.9f, 1.0f)
+            return InteractionResult.SUCCESS
+        }
+
+        if (level.isClientSide) return InteractionResult.SUCCESS
+
+        val anchorA = placement.anchorA
+        val anchorB = placement.anchorB
+
+        if (!BannerGeometry.canShareSurface(anchorA, anchorB)) {
+            clearPlacement(context.itemInHand)
+            return InteractionResult.FAIL
+        }
+
+        val height = BannerGeometry.previewHeight(anchorA, anchorB, context.clickLocation)
+        val banner = BannerEntity(
+            level,
+            anchorA,
+            anchorB,
+            height,
+            DEFAULT_BACKGROUND_COLOR,
+            BannerEntity.DEFAULT_TEXT_COLOR,
+            DEFAULT_TEXT,
+            DEFAULT_FONT_SCALE,
+            BannerTextAlignment.CENTER,
+            player.uuid,
+        )
+        if (!level.noBorderCollision(banner, banner.boundingBox) || !banner.hasSupport()) {
+            return InteractionResult.FAIL
+        }
+
+        level.addFreshEntity(banner)
+        clearPlacement(context.itemInHand)
+        context.itemInHand.hurtAndBreak(1, player, context.hand)
+        player.swing(context.hand, true)
+        level.playSound(null, banner.x, banner.y, banner.z, SoundEvents.WOOL_PLACE, player.soundSource, 1.0f, 1.0f)
+        return InteractionResult.SUCCESS
+    }
+
+    companion object {
+        private const val ANCHOR_A_X = "thestreetism_banner_anchor_a_x"
+        private const val ANCHOR_A_Y = "thestreetism_banner_anchor_a_y"
+        private const val ANCHOR_A_Z = "thestreetism_banner_anchor_a_z"
+        private const val ANCHOR_A_FACE = "thestreetism_banner_anchor_a_face"
+        private const val ANCHOR_B_X = "thestreetism_banner_anchor_b_x"
+        private const val ANCHOR_B_Y = "thestreetism_banner_anchor_b_y"
+        private const val ANCHOR_B_Z = "thestreetism_banner_anchor_b_z"
+        private const val ANCHOR_B_FACE = "thestreetism_banner_anchor_b_face"
+        private const val DEFAULT_BACKGROUND_COLOR = 0xFFF5E0B5.toInt()
+        private const val DEFAULT_TEXT = "Streetism"
+        private const val DEFAULT_FONT_SCALE = 1.0f
+
+        data class PlacementState(
+            val anchorA: BannerGeometry.Anchor?,
+            val anchorB: BannerGeometry.Anchor?,
+        )
+
+        fun getPlacementState(stack: ItemStack): PlacementState {
+            val data = stack.getOrDefault(DataComponents.CUSTOM_DATA, CustomData.EMPTY).copyTag()
+            return PlacementState(
+                anchorA = readAnchor(data, ANCHOR_A_X, ANCHOR_A_Y, ANCHOR_A_Z, ANCHOR_A_FACE),
+                anchorB = readAnchor(data, ANCHOR_B_X, ANCHOR_B_Y, ANCHOR_B_Z, ANCHOR_B_FACE),
+            )
+        }
+
+        fun setAnchorA(stack: ItemStack, anchor: BannerGeometry.Anchor) {
+            CustomData.update(DataComponents.CUSTOM_DATA, stack) { tag ->
+                writeAnchor(tag, ANCHOR_A_X, ANCHOR_A_Y, ANCHOR_A_Z, ANCHOR_A_FACE, anchor)
+                clearAnchor(tag, ANCHOR_B_X, ANCHOR_B_Y, ANCHOR_B_Z, ANCHOR_B_FACE)
+            }
+        }
+
+        fun setAnchorB(stack: ItemStack, anchor: BannerGeometry.Anchor) {
+            CustomData.update(DataComponents.CUSTOM_DATA, stack) { tag ->
+                writeAnchor(tag, ANCHOR_B_X, ANCHOR_B_Y, ANCHOR_B_Z, ANCHOR_B_FACE, anchor)
+            }
+        }
+
+        fun clearPlacement(stack: ItemStack) {
+            CustomData.update(DataComponents.CUSTOM_DATA, stack) { tag ->
+                clearAnchor(tag, ANCHOR_A_X, ANCHOR_A_Y, ANCHOR_A_Z, ANCHOR_A_FACE)
+                clearAnchor(tag, ANCHOR_B_X, ANCHOR_B_Y, ANCHOR_B_Z, ANCHOR_B_FACE)
+            }
+        }
+
+        private fun readAnchor(tag: net.minecraft.nbt.CompoundTag, xKey: String, yKey: String, zKey: String, faceKey: String): BannerGeometry.Anchor? {
+            if (!tag.contains(xKey) || !tag.contains(yKey) || !tag.contains(zKey) || !tag.contains(faceKey)) return null
+            val face = Direction.byName(tag.getStringOr(faceKey, "")) ?: return null
+            return BannerGeometry.Anchor(BlockPos(tag.getIntOr(xKey, 0), tag.getIntOr(yKey, 0), tag.getIntOr(zKey, 0)), face)
+        }
+
+        private fun writeAnchor(tag: net.minecraft.nbt.CompoundTag, xKey: String, yKey: String, zKey: String, faceKey: String, anchor: BannerGeometry.Anchor) {
+            tag.putInt(xKey, anchor.pos.x)
+            tag.putInt(yKey, anchor.pos.y)
+            tag.putInt(zKey, anchor.pos.z)
+            tag.putString(faceKey, anchor.face.serializedName)
+        }
+
+        private fun clearAnchor(tag: net.minecraft.nbt.CompoundTag, xKey: String, yKey: String, zKey: String, faceKey: String) {
+            tag.remove(xKey)
+            tag.remove(yKey)
+            tag.remove(zKey)
+            tag.remove(faceKey)
+        }
+    }
+}
+
 class PaintScraperItem(properties: Properties) : Item(properties) {
     override fun use(level: Level, player: Player, hand: InteractionHand): InteractionResult {
         val hit = findTargetGraffiti(player) ?: return InteractionResult.PASS
@@ -129,7 +273,7 @@ class PaintScraperItem(properties: Properties) : Item(properties) {
             from,
             to,
             AABB(from, to).inflate(1.0),
-            { entity: Entity -> entity is GraffitiEntity && !entity.isRemoved },
+            { entity: Entity -> (entity is GraffitiEntity || entity is BannerEntity) && !entity.isRemoved },
             0.0f,
         )
     }
@@ -152,7 +296,7 @@ class PigmentBagItem(properties: Properties) : Item(properties) {
     }
 
     private fun shouldRestore(stack: ItemStack): Boolean {
-        if (stack.item != ModItems.SPRAY_CAN) return false
+        if (stack.item != ModItems.SPRAY_CAN && stack.item != ModItems.BANNER) return false
         val remainingDurability = stack.maxDamage - stack.damageValue
         return remainingDurability < MIN_TARGET_DURABILITY
     }
