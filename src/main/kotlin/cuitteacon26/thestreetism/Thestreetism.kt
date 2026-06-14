@@ -6,9 +6,14 @@ import cuitteacon26.thestreetism.entity.ModEntities
 import cuitteacon26.thestreetism.entity.ModEntityDataSerializers
 import cuitteacon26.thestreetism.item.ModCreativeTabs
 import cuitteacon26.thestreetism.item.ModItems
+import cuitteacon26.thestreetism.menu.ModMenus
+import cuitteacon26.thestreetism.network.BannerNetwork
+import cuitteacon26.thestreetism.network.BannerStatePayload
+import cuitteacon26.thestreetism.network.BannerUpdatePayload
 import net.neoforged.fml.common.Mod
 import net.neoforged.fml.event.lifecycle.FMLCommonSetupEvent
 import net.neoforged.neoforge.common.NeoForge
+import net.neoforged.neoforge.network.event.RegisterPayloadHandlersEvent
 import org.apache.logging.log4j.Level
 import org.apache.logging.log4j.LogManager
 import org.apache.logging.log4j.Logger
@@ -23,14 +28,23 @@ object Thestreetism {
         ModEntities.REGISTRY.register(MOD_BUS)
         ModEntityDataSerializers.REGISTRY.register(MOD_BUS)
         ModItems.REGISTRY.register(MOD_BUS)
+        ModMenus.REGISTRY.register(MOD_BUS)
         ModCreativeTabs.REGISTRY.register(MOD_BUS)
         MOD_BUS.addListener(::onCommonSetup)
+        MOD_BUS.addListener(::registerPayloads)
         MOD_BUS.addListener(ClientSetup::onClientSetup)
+        MOD_BUS.addListener(ClientSetup::registerMenuScreens)
         NeoForge.EVENT_BUS.addListener(ThestreetismCommands::register)
         ClientSetup.register()
     }
 
     private fun onCommonSetup(event: FMLCommonSetupEvent) {
         LOGGER.log(Level.INFO, "Graffiti spray system initialized.")
+    }
+
+    private fun registerPayloads(event: RegisterPayloadHandlersEvent) {
+        val registrar = event.registrar("1")
+        registrar.playToServer(BannerUpdatePayload.TYPE, BannerUpdatePayload.STREAM_CODEC, BannerNetwork::handleBannerUpdate)
+        registrar.playToClient(BannerStatePayload.TYPE, BannerStatePayload.STREAM_CODEC, BannerNetwork::handleBannerState)
     }
 }
