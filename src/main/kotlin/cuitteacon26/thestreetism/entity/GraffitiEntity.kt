@@ -1,6 +1,10 @@
 package cuitteacon26.thestreetism.entity
 
 import cuitteacon26.thestreetism.Thestreetism
+import cuitteacon26.thestreetism.banner.BannerGeometry
+import cuitteacon26.thestreetism.banner.BannerTextAlignment
+import cuitteacon26.thestreetism.client.GraffitiTextures
+import cuitteacon26.thestreetism.menu.BannerMenuProvider
 import cuitteacon26.thestreetism.graffiti.GraffitiRegistry
 import net.minecraft.core.BlockPos
 import net.minecraft.core.Direction
@@ -9,12 +13,15 @@ import net.minecraft.network.syncher.EntityDataSerializers
 import net.minecraft.network.syncher.SynchedEntityData
 import net.minecraft.resources.Identifier
 import net.minecraft.server.level.ServerLevel
+import net.minecraft.world.InteractionHand
+import net.minecraft.world.InteractionResult
 import net.minecraft.world.damagesource.DamageSource
 import net.minecraft.world.entity.Entity
 import net.minecraft.world.entity.EntityDimensions
 import net.minecraft.world.entity.EntityType
 import net.minecraft.world.entity.MobCategory
 import net.minecraft.world.entity.Pose
+import net.minecraft.world.entity.player.Player
 import net.minecraft.world.item.ItemStack
 import net.minecraft.world.level.Level
 import net.minecraft.world.level.block.Block
@@ -33,6 +40,10 @@ object ModEntities {
     val REGISTRY = DeferredRegister.createEntities(Thestreetism.ID)
 
     val GRAFFITI by REGISTRY.registerEntityType("graffiti", ::GraffitiEntity, MobCategory.MISC) { builder ->
+        builder.noLootTable().sized(1.0f, 1.0f).clientTrackingRange(10).updateInterval(10)
+    }
+
+    val BANNER by REGISTRY.registerEntityType("banner", ::BannerEntity, MobCategory.MISC) { builder ->
         builder.noLootTable().sized(1.0f, 1.0f).clientTrackingRange(10).updateInterval(10)
     }
 }
@@ -240,5 +251,236 @@ class GraffitiEntity(type: EntityType<out GraffitiEntity>, level: Level) : Entit
         private fun sanitizeStoredGraffitiSize(size: Float): Float {
             return if (size.isFinite() && size > 0.0f) size else 1.0f
         }
+    }
+}
+
+class BannerEntity(type: EntityType<out BannerEntity>, level: Level) : Entity(type, level) {
+    constructor(
+        level: Level,
+        anchorA: BannerGeometry.Anchor,
+        anchorB: BannerGeometry.Anchor,
+        height: Float,
+        backgroundColor: Int,
+        textColor: Int,
+        text: String,
+        fontScale: Float,
+        textAlignment: BannerTextAlignment,
+        owner: UUID?,
+    ) : this(ModEntities.BANNER, level) {
+        setAnchorA(anchorA)
+        setAnchorB(anchorB)
+        setBannerHeight(height)
+        setBackgroundColor(backgroundColor)
+        setTextColor(textColor)
+        setText(text)
+        setFontScale(fontScale)
+        setTextAlignment(textAlignment)
+        setOwner(owner)
+        val placement = placement()
+        setPos(placement.center.x, placement.center.y, placement.center.z)
+        refreshDimensions()
+        updateBoundingBox()
+    }
+
+    var ownerUuid: UUID?
+        get() = entityData.get(DATA_OWNER).orElse(null)
+        private set(value) = setOwner(value)
+
+    override fun defineSynchedData(entityData: SynchedEntityData.Builder) {
+        entityData.define(DATA_ANCHOR_A, BlockPos.ZERO)
+        entityData.define(DATA_ANCHOR_A_FACE, Direction.NORTH)
+        entityData.define(DATA_ANCHOR_B, BlockPos.ZERO)
+        entityData.define(DATA_ANCHOR_B_FACE, Direction.NORTH)
+        entityData.define(DATA_HEIGHT, BannerGeometry.DEFAULT_HEIGHT)
+        entityData.define(DATA_BACKGROUND_COLOR, DEFAULT_BACKGROUND_COLOR)
+        entityData.define(DATA_TEXT_COLOR, DEFAULT_TEXT_COLOR)
+        entityData.define(DATA_TEXT, "")
+        entityData.define(DATA_FONT_SCALE, DEFAULT_FONT_SCALE)
+        entityData.define(DATA_TEXT_ALIGNMENT, BannerTextAlignment.CENTER.serializedName)
+        entityData.define(DATA_OWNER, Optional.empty())
+    }
+
+    override fun onSyncedDataUpdated(accessor: EntityDataAccessor<*>) {
+        super.onSyncedDataUpdated(accessor)
+        if (accessor == DATA_ANCHOR_A || accessor == DATA_ANCHOR_A_FACE || accessor == DATA_ANCHOR_B || accessor == DATA_ANCHOR_B_FACE || accessor == DATA_HEIGHT) {
+            val placement = placement()
+            setPos(placement.center.x, placement.center.y, placement.center.z)
+            refreshDimensions()
+            updateBoundingBox()
+        }
+    }
+
+    override fun getDimensions(pose: Pose): EntityDimensions {
+        val placement = placement()
+        return EntityDimensions.scalable(placement.length, placement.height)
+    }
+
+    override fun makeBoundingBox(position: Vec3): AABB = BannerGeometry.boundingBox(placement(), BannerGeometry.BOUNDING_BOX_DEPTH)
+
+    fun anchorA(): BannerGeometry.Anchor = BannerGeometry.Anchor(entityData.get(DATA_ANCHOR_A), entityData.get(DATA_ANCHOR_A_FACE))
+
+    fun anchorB(): BannerGeometry.Anchor = BannerGeometry.Anchor(entityData.get(DATA_ANCHOR_B), entityData.get(DATA_ANCHOR_B_FACE))
+
+    fun bannerHeight(): Float = entityData.get(DATA_HEIGHT)
+
+    fun backgroundColor(): Int = entityData.get(DATA_BACKGROUND_COLOR)
+
+    fun textColor(): Int = entityData.get(DATA_TEXT_COLOR)
+
+    fun text(): String = entityData.get(DATA_TEXT)
+
+    fun fontScale(): Float = entityData.get(DATA_FONT_SCALE)
+
+    fun textAlignment(): BannerTextAlignment = BannerTextAlignment.bySerializedName(entityData.get(DATA_TEXT_ALIGNMENT))
+
+    fun textureKey(): String {
+        val placement = placement()
+        return GraffitiTextures.resolveBannerTexture(
+            placement.length,
+            placement.height,
+            backgroundColor(),
+            textColor(),
+            text(),
+            fontScale(),
+            textAlignment(),
+        )
+    }
+
+    fun placement(): BannerGeometry.Placement = BannerGeometry.create(anchorA(), anchorB(), bannerHeight())
+
+    fun facing(): Direction = anchorA().face
+
+    fun rotation(): Float = BannerGeometry.rotationDegrees(placement().horizontalDirection)
+
+    fun supportFaces(): List<Pair<BlockPos, Direction>> {
+        return listOf(
+            anchorA().pos to anchorA().face,
+            anchorB().pos to anchorB().face,
+        )
+    }
+
+    fun setAnchorA(anchor: BannerGeometry.Anchor) {
+        entityData.set(DATA_ANCHOR_A, anchor.pos)
+        entityData.set(DATA_ANCHOR_A_FACE, anchor.face)
+    }
+
+    fun setAnchorB(anchor: BannerGeometry.Anchor) {
+        entityData.set(DATA_ANCHOR_B, anchor.pos)
+        entityData.set(DATA_ANCHOR_B_FACE, anchor.face)
+    }
+
+    fun setBannerHeight(height: Float) = entityData.set(DATA_HEIGHT, sanitizeBannerHeight(height))
+
+    fun setBackgroundColor(color: Int) = entityData.set(DATA_BACKGROUND_COLOR, normalizeColor(color))
+
+    fun setTextColor(color: Int) = entityData.set(DATA_TEXT_COLOR, normalizeColor(color))
+
+    fun setText(text: String) = entityData.set(DATA_TEXT, text.take(MAX_TEXT_LENGTH))
+
+    fun setFontScale(scale: Float) = entityData.set(DATA_FONT_SCALE, sanitizeFontScale(scale))
+
+    fun setTextAlignment(alignment: BannerTextAlignment) = entityData.set(DATA_TEXT_ALIGNMENT, alignment.serializedName)
+
+    fun setOwner(owner: UUID?) = entityData.set(DATA_OWNER, Optional.ofNullable(owner))
+
+    override fun tick() {
+        super.tick()
+        if (!level().isClientSide && tickCount % 20 == 0 && !hasSupport()) {
+            discard()
+        }
+    }
+
+    fun hasSupport(): Boolean = supportFaces().all { (pos, face) -> Block.canSupportCenter(level(), pos, face) }
+
+    override fun isPickable(): Boolean = true
+
+    override fun isPushable(): Boolean = false
+
+    override fun canCollideWith(entity: Entity): Boolean = false
+
+    override fun hurtServer(level: ServerLevel, source: DamageSource, damage: Float): Boolean = false
+
+    override fun interact(player: Player, hand: InteractionHand, location: Vec3): InteractionResult {
+        if (level().isClientSide) {
+            return InteractionResult.SUCCESS
+        }
+        val serverPlayer = player as? net.minecraft.server.level.ServerPlayer ?: return InteractionResult.PASS
+        serverPlayer.openMenu(BannerMenuProvider(this))
+        return InteractionResult.CONSUME
+    }
+
+    override fun addAdditionalSaveData(output: ValueOutput) {
+        output.store("anchorA", BlockPos.CODEC, anchorA().pos)
+        output.store("anchorAFace", Direction.CODEC, anchorA().face)
+        output.store("anchorB", BlockPos.CODEC, anchorB().pos)
+        output.store("anchorBFace", Direction.CODEC, anchorB().face)
+        output.putFloat("height", bannerHeight())
+        output.putInt("backgroundColor", backgroundColor())
+        output.putInt("textColor", textColor())
+        output.putString("text", text())
+        output.putFloat("fontScale", fontScale())
+        output.putString("textAlignment", textAlignment().serializedName)
+        ownerUuid?.let { output.putString("ownerUUID", it.toString()) }
+    }
+
+    override fun readAdditionalSaveData(input: ValueInput) {
+        val anchorAPos = input.read("anchorA", BlockPos.CODEC).orElse(BlockPos.ZERO)
+        val anchorAFace = input.read("anchorAFace", Direction.CODEC).orElse(Direction.NORTH)
+        val anchorBPos = input.read("anchorB", BlockPos.CODEC).orElse(anchorAPos)
+        val anchorBFace = input.read("anchorBFace", Direction.CODEC).orElse(anchorAFace)
+        setAnchorA(BannerGeometry.Anchor(anchorAPos, anchorAFace))
+        setAnchorB(BannerGeometry.Anchor(anchorBPos, anchorBFace))
+        setBannerHeight(input.getFloatOr("height", BannerGeometry.DEFAULT_HEIGHT))
+        setBackgroundColor(input.getIntOr("backgroundColor", DEFAULT_BACKGROUND_COLOR))
+        setTextColor(input.getIntOr("textColor", DEFAULT_TEXT_COLOR))
+        setText(input.getString("text").orElse(""))
+        setFontScale(input.getFloatOr("fontScale", DEFAULT_FONT_SCALE))
+        setTextAlignment(BannerTextAlignment.bySerializedName(input.getString("textAlignment").orElse(BannerTextAlignment.CENTER.serializedName)))
+        setOwner(input.getString("ownerUUID").flatMap {
+            try {
+                Optional.of(UUID.fromString(it))
+            } catch (_: IllegalArgumentException) {
+                Optional.empty()
+            }
+        }.orElse(null))
+        val placement = placement()
+        setPos(placement.center.x, placement.center.y, placement.center.z)
+        refreshDimensions()
+        updateBoundingBox()
+    }
+
+    override fun getPickResult(): ItemStack = ItemStack.EMPTY
+
+    private fun updateBoundingBox() {
+        boundingBox = BannerGeometry.boundingBox(placement(), BannerGeometry.BOUNDING_BOX_DEPTH)
+    }
+
+    companion object {
+        const val DEFAULT_BACKGROUND_COLOR = 0xFFF5E0B5.toInt()
+        const val DEFAULT_TEXT_COLOR = 0xFF111111.toInt()
+        const val DEFAULT_FONT_SCALE = 1.0f
+        const val MAX_TEXT_LENGTH = 256
+
+        private val DATA_ANCHOR_A: EntityDataAccessor<BlockPos> = SynchedEntityData.defineId(BannerEntity::class.java, EntityDataSerializers.BLOCK_POS)
+        private val DATA_ANCHOR_A_FACE: EntityDataAccessor<Direction> = SynchedEntityData.defineId(BannerEntity::class.java, EntityDataSerializers.DIRECTION)
+        private val DATA_ANCHOR_B: EntityDataAccessor<BlockPos> = SynchedEntityData.defineId(BannerEntity::class.java, EntityDataSerializers.BLOCK_POS)
+        private val DATA_ANCHOR_B_FACE: EntityDataAccessor<Direction> = SynchedEntityData.defineId(BannerEntity::class.java, EntityDataSerializers.DIRECTION)
+        private val DATA_HEIGHT: EntityDataAccessor<Float> = SynchedEntityData.defineId(BannerEntity::class.java, EntityDataSerializers.FLOAT)
+        private val DATA_BACKGROUND_COLOR: EntityDataAccessor<Int> = SynchedEntityData.defineId(BannerEntity::class.java, EntityDataSerializers.INT)
+        private val DATA_TEXT_COLOR: EntityDataAccessor<Int> = SynchedEntityData.defineId(BannerEntity::class.java, EntityDataSerializers.INT)
+        private val DATA_TEXT: EntityDataAccessor<String> = SynchedEntityData.defineId(BannerEntity::class.java, EntityDataSerializers.STRING)
+        private val DATA_FONT_SCALE: EntityDataAccessor<Float> = SynchedEntityData.defineId(BannerEntity::class.java, EntityDataSerializers.FLOAT)
+        private val DATA_TEXT_ALIGNMENT: EntityDataAccessor<String> = SynchedEntityData.defineId(BannerEntity::class.java, EntityDataSerializers.STRING)
+        private val DATA_OWNER: EntityDataAccessor<Optional<UUID>> = SynchedEntityData.defineId(BannerEntity::class.java, ModEntityDataSerializers.OPTIONAL_UUID)
+
+        private fun sanitizeBannerHeight(height: Float): Float {
+            return if (height.isFinite() && height > 0.25f) height else BannerGeometry.DEFAULT_HEIGHT
+        }
+
+        private fun sanitizeFontScale(scale: Float): Float {
+            return if (scale.isFinite() && scale > 0.1f) scale.coerceAtMost(8.0f) else DEFAULT_FONT_SCALE
+        }
+
+        private fun normalizeColor(color: Int): Int = color or 0xFF000000.toInt()
     }
 }
