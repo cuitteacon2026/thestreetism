@@ -1,0 +1,22 @@
+{
+  "parent": "minecraft:block/block",
+  "textures": {
+    "particle": "thestreetism:block/flag_pole_side",
+    "pole": "thestreetism:block/flag_pole_side",
+    "cap": "thestreetism:block/flag_pole_top"
+  },
+  "elements": [
+    {
+      "from": [0, 7, 7],
+      "to": [16, 9, 9],
+      "faces": {
+        "north": { "texture": "#pole" },
+        "south": { "texture": "#pole" },
+        "west": { "texture": "#cap" },
+        "east": { "texture": "#cap" },
+        "up": { "texture": "#pole" },
+        "down": { "texture": "#pole" }
+      }
+    }
+  ]
+}

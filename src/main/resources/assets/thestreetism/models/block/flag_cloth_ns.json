@@ -1,0 +1,21 @@
+{
+  "parent": "minecraft:block/block",
+  "textures": {
+    "particle": "thestreetism:block/flag_cloth",
+    "cloth": "thestreetism:block/flag_cloth"
+  },
+  "elements": [
+    {
+      "from": [0, 0, 7],
+      "to": [16, 16, 9],
+      "faces": {
+        "north": { "texture": "#cloth" },
+        "south": { "texture": "#cloth" },
+        "east": { "texture": "#cloth" },
+        "west": { "texture": "#cloth" },
+        "up": { "texture": "#cloth" },
+        "down": { "texture": "#cloth" }
+      }
+    }
+  ]
+}

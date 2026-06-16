@@ -1,0 +1,12 @@
+{
+  "variants": {
+    "facing=north,waterlogged=false": { "model": "thestreetism:block/flag_pole", "y": 0 },
+    "facing=north,waterlogged=true": { "model": "thestreetism:block/flag_pole", "y": 0 },
+    "facing=south,waterlogged=false": { "model": "thestreetism:block/flag_pole", "y": 0 },
+    "facing=south,waterlogged=true": { "model": "thestreetism:block/flag_pole", "y": 0 },
+    "facing=east,waterlogged=false":  { "model": "thestreetism:block/flag_pole", "y": 90 },
+    "facing=east,waterlogged=true":  { "model": "thestreetism:block/flag_pole", "y": 90 },
+    "facing=west,waterlogged=false":  { "model": "thestreetism:block/flag_pole", "y": 90 },
+    "facing=west,waterlogged=true":  { "model": "thestreetism:block/flag_pole", "y": 90 }
+  }
+}

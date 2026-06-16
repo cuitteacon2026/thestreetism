@@ -6,6 +6,7 @@ import cuitteacon26.thestreetism.banner.BannerTextAlignment
 import cuitteacon26.thestreetism.entity.BannerEntity
 import cuitteacon26.thestreetism.entity.GraffitiEntity
 import cuitteacon26.thestreetism.entity.ModEntities
+import cuitteacon26.thestreetism.client.font.FontRegistry
 import cuitteacon26.thestreetism.client.gui.BannerEditorScreen
 import cuitteacon26.thestreetism.item.BannerItem
 import cuitteacon26.thestreetism.item.ModItems
@@ -44,12 +45,20 @@ object ClientSetup {
     fun register() {
         NeoForge.EVENT_BUS.register(GraffitiPreviewRenderer)
         NeoForge.EVENT_BUS.register(BannerPlacementPreviewRenderer)
+        NeoForge.EVENT_BUS.register(cuitteacon26.thestreetism.client.render.FlagPreviewRenderer)
     }
 
     fun onClientSetup(event: FMLClientSetupEvent) {
         event.enqueueWork {
+            FontRegistry.reload()
             net.minecraft.client.renderer.entity.EntityRenderers.register(ModEntities.GRAFFITI, ::GraffitiRenderer)
             net.minecraft.client.renderer.entity.EntityRenderers.register(ModEntities.BANNER, ::BannerRenderer)
+            net.minecraft.client.renderer.blockentity.BlockEntityRenderers.register(
+                cuitteacon26.thestreetism.blockentity.ModBlockEntities.FLAG_CONTROLLER,
+                net.minecraft.client.renderer.blockentity.BlockEntityRendererProvider { ctx ->
+                    cuitteacon26.thestreetism.client.render.FlagRenderer(ctx)
+                }
+            )
         }
     }
 

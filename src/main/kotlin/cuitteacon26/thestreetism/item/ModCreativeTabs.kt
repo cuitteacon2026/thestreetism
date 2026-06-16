@@ -21,6 +21,9 @@ object ModCreativeTabs {
                 output.accept(ModItems.PAINT_SCRAPER)
                 output.accept(ModItems.PIGMENT_BAG)
                 output.accept(ModItems.BANNER)
+                output.accept(ModItems.STITCHING_TOOL)
+                output.accept(ModItems.FLAG_POLE)
+                output.accept(ModItems.FLAG_CLOTH)
             }
             .withTabsBefore(Identifier.withDefaultNamespace("spawn_eggs"))
             .build()

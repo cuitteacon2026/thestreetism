@@ -1,5 +1,7 @@
 package cuitteacon26.thestreetism
 
+import cuitteacon26.thestreetism.block.ModBlocks
+import cuitteacon26.thestreetism.blockentity.ModBlockEntities
 import cuitteacon26.thestreetism.client.ClientSetup
 import cuitteacon26.thestreetism.command.ThestreetismCommands
 import cuitteacon26.thestreetism.entity.ModEntities
@@ -10,6 +12,9 @@ import cuitteacon26.thestreetism.menu.ModMenus
 import cuitteacon26.thestreetism.network.BannerNetwork
 import cuitteacon26.thestreetism.network.BannerStatePayload
 import cuitteacon26.thestreetism.network.BannerUpdatePayload
+import cuitteacon26.thestreetism.network.FlagEditorOpenPayload
+import cuitteacon26.thestreetism.network.FlagUpdatePayload
+import cuitteacon26.thestreetism.network.FlagSyncPayload
 import net.neoforged.fml.common.Mod
 import net.neoforged.fml.event.lifecycle.FMLCommonSetupEvent
 import net.neoforged.neoforge.common.NeoForge
@@ -27,6 +32,8 @@ object Thestreetism {
     init {
         ModEntities.REGISTRY.register(MOD_BUS)
         ModEntityDataSerializers.REGISTRY.register(MOD_BUS)
+        ModBlocks.REGISTRY.register(MOD_BUS)
+        ModBlockEntities.REGISTRY.register(MOD_BUS)
         ModItems.REGISTRY.register(MOD_BUS)
         ModMenus.REGISTRY.register(MOD_BUS)
         ModCreativeTabs.REGISTRY.register(MOD_BUS)
@@ -39,12 +46,17 @@ object Thestreetism {
     }
 
     private fun onCommonSetup(event: FMLCommonSetupEvent) {
-        LOGGER.log(Level.INFO, "Graffiti spray system initialized.")
+        LOGGER.log(Level.INFO, "Flag system and graffiti system initialized.")
     }
 
     private fun registerPayloads(event: RegisterPayloadHandlersEvent) {
         val registrar = event.registrar("1")
+        // Legacy banner payloads
         registrar.playToServer(BannerUpdatePayload.TYPE, BannerUpdatePayload.STREAM_CODEC, BannerNetwork::handleBannerUpdate)
         registrar.playToClient(BannerStatePayload.TYPE, BannerStatePayload.STREAM_CODEC, BannerNetwork::handleBannerState)
+        // Flag payloads
+        registrar.playToServer(FlagUpdatePayload.TYPE, FlagUpdatePayload.STREAM_CODEC, FlagUpdatePayload.Companion::handle)
+        registrar.playToClient(FlagSyncPayload.TYPE, FlagSyncPayload.STREAM_CODEC, FlagSyncPayload.Companion::handle)
+        registrar.playToClient(FlagEditorOpenPayload.TYPE, FlagEditorOpenPayload.STREAM_CODEC, FlagEditorOpenPayload.Companion::handle)
     }
 }

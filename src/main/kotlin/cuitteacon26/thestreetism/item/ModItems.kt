@@ -1,6 +1,8 @@
 package cuitteacon26.thestreetism.item
 
 import cuitteacon26.thestreetism.Thestreetism
+import cuitteacon26.thestreetism.block.ModBlocks
+import cuitteacon26.thestreetism.item.StitchingToolItem
 import cuitteacon26.thestreetism.banner.BannerGeometry
 import cuitteacon26.thestreetism.banner.BannerTextAlignment
 import cuitteacon26.thestreetism.entity.BannerEntity
@@ -27,12 +29,15 @@ import net.neoforged.neoforge.registries.DeferredRegister
 import thedarkcolour.kotlinforforge.neoforge.forge.getValue
 
 object ModItems {
-    val REGISTRY = DeferredRegister.createItems(Thestreetism.ID)
+    val REGISTRY: DeferredRegister.Items = DeferredRegister.createItems(Thestreetism.ID)
 
     val SPRAY_CAN by REGISTRY.registerItem("spray_can", { props -> SprayCanItem(props) }, java.util.function.UnaryOperator<Item.Properties> { it.stacksTo(1).durability(100) })
     val PAINT_SCRAPER by REGISTRY.registerItem("paint_scraper", { props -> PaintScraperItem(props) }, java.util.function.UnaryOperator<Item.Properties> { it.stacksTo(1) })
     val PIGMENT_BAG by REGISTRY.registerItem("pigment_bag", { props -> PigmentBagItem(props) }, java.util.function.UnaryOperator<Item.Properties> { it.stacksTo(1).durability(5) })
     val BANNER by REGISTRY.registerItem("banner", { props -> BannerItem(props) }, java.util.function.UnaryOperator<Item.Properties> { it.stacksTo(1).durability(100) })
+    val STITCHING_TOOL by REGISTRY.registerItem("stitching_tool", { props -> StitchingToolItem(props) }, java.util.function.UnaryOperator<Item.Properties> { it.stacksTo(1).durability(50) })
+    val FLAG_POLE = REGISTRY.registerSimpleBlockItem(ModBlocks.FLAG_POLE)
+    val FLAG_CLOTH = REGISTRY.registerSimpleBlockItem(ModBlocks.FLAG_CLOTH)
 }
 
 class SprayCanItem(properties: Properties) : Item(properties) {
