@@ -1,0 +1,39 @@
+{
+  "variants": {
+    "controller=false,facing=north,stitched=false,waterlogged=false": { "model": "thestreetism:block/flag_cloth_ns" },
+    "controller=false,facing=north,stitched=false,waterlogged=true": { "model": "thestreetism:block/flag_cloth_ns" },
+    "controller=false,facing=south,stitched=false,waterlogged=false": { "model": "thestreetism:block/flag_cloth_ns", "y": 180 },
+    "controller=false,facing=south,stitched=false,waterlogged=true": { "model": "thestreetism:block/flag_cloth_ns", "y": 180 },
+    "controller=false,facing=east,stitched=false,waterlogged=false":  { "model": "thestreetism:block/flag_cloth_ew", "y": 90 },
+    "controller=false,facing=east,stitched=false,waterlogged=true":  { "model": "thestreetism:block/flag_cloth_ew", "y": 90 },
+    "controller=false,facing=west,stitched=false,waterlogged=false":  { "model": "thestreetism:block/flag_cloth_ew", "y": 270 },
+    "controller=false,facing=west,stitched=false,waterlogged=true":  { "model": "thestreetism:block/flag_cloth_ew", "y": 270 },
+
+    "controller=true,facing=north,stitched=false,waterlogged=false": { "model": "thestreetism:block/flag_cloth_ns" },
+    "controller=true,facing=north,stitched=false,waterlogged=true": { "model": "thestreetism:block/flag_cloth_ns" },
+    "controller=true,facing=south,stitched=false,waterlogged=false": { "model": "thestreetism:block/flag_cloth_ns", "y": 180 },
+    "controller=true,facing=south,stitched=false,waterlogged=true": { "model": "thestreetism:block/flag_cloth_ns", "y": 180 },
+    "controller=true,facing=east,stitched=false,waterlogged=false":  { "model": "thestreetism:block/flag_cloth_ew", "y": 90 },
+    "controller=true,facing=east,stitched=false,waterlogged=true":  { "model": "thestreetism:block/flag_cloth_ew", "y": 90 },
+    "controller=true,facing=west,stitched=false,waterlogged=false":  { "model": "thestreetism:block/flag_cloth_ew", "y": 270 },
+    "controller=true,facing=west,stitched=false,waterlogged=true":  { "model": "thestreetism:block/flag_cloth_ew", "y": 270 },
+
+    "controller=false,facing=north,stitched=true,waterlogged=false": { "model": "thestreetism:block/flag_cloth_ns" },
+    "controller=false,facing=north,stitched=true,waterlogged=true": { "model": "thestreetism:block/flag_cloth_ns" },
+    "controller=false,facing=south,stitched=true,waterlogged=false": { "model": "thestreetism:block/flag_cloth_ns", "y": 180 },
+    "controller=false,facing=south,stitched=true,waterlogged=true": { "model": "thestreetism:block/flag_cloth_ns", "y": 180 },
+    "controller=false,facing=east,stitched=true,waterlogged=false":  { "model": "thestreetism:block/flag_cloth_ew", "y": 90 },
+    "controller=false,facing=east,stitched=true,waterlogged=true":  { "model": "thestreetism:block/flag_cloth_ew", "y": 90 },
+    "controller=false,facing=west,stitched=true,waterlogged=false":  { "model": "thestreetism:block/flag_cloth_ew", "y": 270 },
+    "controller=false,facing=west,stitched=true,waterlogged=true":  { "model": "thestreetism:block/flag_cloth_ew", "y": 270 },
+
+    "controller=true,facing=north,stitched=true,waterlogged=false": { "model": "thestreetism:block/flag_cloth_ns" },
+    "controller=true,facing=north,stitched=true,waterlogged=true": { "model": "thestreetism:block/flag_cloth_ns" },
+    "controller=true,facing=south,stitched=true,waterlogged=false": { "model": "thestreetism:block/flag_cloth_ns", "y": 180 },
+    "controller=true,facing=south,stitched=true,waterlogged=true": { "model": "thestreetism:block/flag_cloth_ns", "y": 180 },
+    "controller=true,facing=east,stitched=true,waterlogged=false":  { "model": "thestreetism:block/flag_cloth_ew", "y": 90 },
+    "controller=true,facing=east,stitched=true,waterlogged=true":  { "model": "thestreetism:block/flag_cloth_ew", "y": 90 },
+    "controller=true,facing=west,stitched=true,waterlogged=false":  { "model": "thestreetism:block/flag_cloth_ew", "y": 270 },
+    "controller=true,facing=west,stitched=true,waterlogged=true":  { "model": "thestreetism:block/flag_cloth_ew", "y": 270 }
+  }
+}

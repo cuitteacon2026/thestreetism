@@ -1,19 +1,24 @@
 package cuitteacon26.thestreetism.block
 
 import cuitteacon26.thestreetism.Thestreetism
-import net.minecraft.world.level.block.Block
-import net.minecraft.world.level.block.state.BlockBehaviour
+import net.minecraft.world.level.block.SoundType
+import net.neoforged.neoforge.registries.DeferredBlock
 import net.neoforged.neoforge.registries.DeferredRegister
 
-// THIS LINE IS REQUIRED FOR USING PROPERTY DELEGATES
-import thedarkcolour.kotlinforforge.neoforge.forge.getValue
+object ModBlocks {
+    val REGISTRY: DeferredRegister.Blocks = DeferredRegister.createBlocks(Thestreetism.ID)
 
-/*object ModBlocks {
-    val REGISTRY = DeferredRegister.createBlocks(Thestreetism.ID)
+    val FLAG_POLE: DeferredBlock<FlagPoleBlock> = REGISTRY.registerBlock("flag_pole", ::FlagPoleBlock) { properties ->
+        properties
+            .strength(2.0f, 6.0f)
+            .sound(SoundType.METAL)
+            .noOcclusion()
+    }
 
-    // If you get an "overload resolution ambiguity" error, include the arrow at the start of the closure.
-    val EXAMPLE_BLOCK by REGISTRY.register("example_block") { ->
-        Block(BlockBehaviour.Properties.of().lightLevel { 15 }.strength(3.0f))
+    val FLAG_CLOTH: DeferredBlock<FlagClothBlock> = REGISTRY.registerBlock("flag_cloth", ::FlagClothBlock) { properties ->
+        properties
+            .strength(0.5f)
+            .sound(SoundType.WOOL)
+            .noOcclusion()
     }
 }
-*/
