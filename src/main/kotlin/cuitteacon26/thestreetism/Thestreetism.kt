@@ -15,8 +15,10 @@ import cuitteacon26.thestreetism.network.BannerUpdatePayload
 import cuitteacon26.thestreetism.network.FlagEditorOpenPayload
 import cuitteacon26.thestreetism.network.FlagUpdatePayload
 import cuitteacon26.thestreetism.network.FlagSyncPayload
+import net.neoforged.api.distmarker.Dist
 import net.neoforged.fml.common.Mod
 import net.neoforged.fml.event.lifecycle.FMLCommonSetupEvent
+import net.neoforged.fml.loading.FMLEnvironment
 import net.neoforged.neoforge.common.NeoForge
 import net.neoforged.neoforge.network.event.RegisterPayloadHandlersEvent
 import org.apache.logging.log4j.Level
@@ -39,10 +41,10 @@ object Thestreetism {
         ModCreativeTabs.REGISTRY.register(MOD_BUS)
         MOD_BUS.addListener(::onCommonSetup)
         MOD_BUS.addListener(::registerPayloads)
-        MOD_BUS.addListener(ClientSetup::onClientSetup)
-        MOD_BUS.addListener(ClientSetup::registerMenuScreens)
         NeoForge.EVENT_BUS.addListener(ThestreetismCommands::register)
-        ClientSetup.register()
+        if (FMLEnvironment.getDist() == Dist.CLIENT) {
+            registerClientSetup()
+        }
     }
 
     private fun onCommonSetup(event: FMLCommonSetupEvent) {
@@ -58,5 +60,11 @@ object Thestreetism {
         registrar.playToServer(FlagUpdatePayload.TYPE, FlagUpdatePayload.STREAM_CODEC, FlagUpdatePayload.Companion::handle)
         registrar.playToClient(FlagSyncPayload.TYPE, FlagSyncPayload.STREAM_CODEC, FlagSyncPayload.Companion::handle)
         registrar.playToClient(FlagEditorOpenPayload.TYPE, FlagEditorOpenPayload.STREAM_CODEC, FlagEditorOpenPayload.Companion::handle)
+    }
+
+    private fun registerClientSetup() {
+        MOD_BUS.addListener(ClientSetup::onClientSetup)
+        MOD_BUS.addListener(ClientSetup::registerMenuScreens)
+        ClientSetup.register()
     }
 }
