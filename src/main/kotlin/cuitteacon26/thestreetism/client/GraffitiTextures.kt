@@ -2,6 +2,7 @@ package cuitteacon26.thestreetism.client
 
 import cuitteacon26.thestreetism.Thestreetism
 import cuitteacon26.thestreetism.banner.BannerTextAlignment
+import cuitteacon26.thestreetism.color.RgbColor
 import cuitteacon26.thestreetism.entity.BannerEntity
 import com.mojang.blaze3d.platform.NativeImage
 import net.minecraft.client.Minecraft
@@ -32,7 +33,7 @@ object GraffitiTextures {
     private val FALLBACK_TEXTURE =
         Identifier.fromNamespaceAndPath(
             Thestreetism.ID,
-            "textures/graffiti/empty.png"
+            "textures/graffiti/error.png"
         )
 
     fun hasPreferredSystemFont(): Boolean = preferredFontFamily() != null
@@ -45,11 +46,7 @@ object GraffitiTextures {
             key.startsWith("remote:") ->
                 resolveRemote(key, key.removePrefix("remote:"))
 
-            key.startsWith("local:") ->
-                resolveLocal(key.removePrefix("local:"))
-
-            else ->
-                resolveLocal(key)
+            else -> FALLBACK_TEXTURE
         }
     }
 
@@ -65,29 +62,6 @@ object GraffitiTextures {
         val key = bannerTextureKey(width, height, backgroundColor, textColor, text, fontScale, textAlignment)
         resolveBanner(key)
         return "$BANNER_KEY_PREFIX$key"
-    }
-
-    private fun resolveLocal(name: String): Identifier {
-        val parsed = Identifier.tryParse(name)
-
-        if (parsed != null) {
-            if (
-                parsed.path.startsWith("textures/")
-                || parsed.path.endsWith(".png")
-            ) {
-                return parsed
-            }
-
-            return Identifier.fromNamespaceAndPath(
-                parsed.namespace,
-                "textures/graffiti/${parsed.path}.png"
-            )
-        }
-
-        return Identifier.fromNamespaceAndPath(
-            Thestreetism.ID,
-            "textures/graffiti/$name.png"
-        )
     }
 
     private fun resolveBanner(key: String): Identifier {
@@ -218,7 +192,7 @@ object GraffitiTextures {
         try {
             graphics.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON)
             graphics.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, RenderingHints.VALUE_TEXT_ANTIALIAS_ON)
-            graphics.color = Color(payload.backgroundColor or 0xFF000000.toInt(), true)
+            graphics.color = Color(RgbColor.opaqueArgb(payload.backgroundColor), true)
             graphics.fillRect(0, 0, pixelWidth, pixelHeight)
             drawBannerText(graphics, payload, pixelWidth, pixelHeight)
         } finally {
@@ -228,7 +202,7 @@ object GraffitiTextures {
         val image = NativeImage(NativeImage.Format.RGBA, pixelWidth, pixelHeight, false)
         for (y in 0 until pixelHeight) {
             for (x in 0 until pixelWidth) {
-                image.setPixel(x, y, buffered.getRGB(x, y))
+                image.setPixel(x, y, RgbColor.argbToAbgr(buffered.getRGB(x, y)))
             }
         }
         return image
@@ -246,8 +220,8 @@ object GraffitiTextures {
         return listOf(
             formatBannerNumber(width),
             formatBannerNumber(height),
-            normalizeColor(backgroundColor).toUInt().toString(16),
-            normalizeColor(textColor).toUInt().toString(16),
+            RgbColor.formatHex(backgroundColor),
+            RgbColor.formatHex(textColor),
             formatBannerNumber(fontScale),
             textAlignment.serializedName,
             encodeKeyPart(text.take(BannerEntity.MAX_TEXT_LENGTH)),
@@ -285,7 +259,7 @@ object GraffitiTextures {
         val totalHeight = resolvedLines.size * metrics.height
         var y = paddingY + ((usableHeight - totalHeight) / 2.0f).coerceAtLeast(0.0f) + metrics.ascent
         graphics.font = font
-        graphics.color = Color(payload.textColor or 0xFF000000.toInt(), true)
+        graphics.color = Color(RgbColor.opaqueArgb(payload.textColor), true)
         resolvedLines.forEach { line ->
             val lineWidth = metrics.stringWidth(line)
             val x = paddingX + when (payload.textAlignment) {
@@ -370,8 +344,6 @@ object GraffitiTextures {
         }
     }
 
-    private fun normalizeColor(color: Int): Int = color or 0xFF000000.toInt()
-
     private fun encodeKeyPart(value: String): String = Base64.getUrlEncoder().withoutPadding().encodeToString(value.toByteArray(Charsets.UTF_8))
 
     private fun decodeKeyPart(value: String): String? {
@@ -397,8 +369,8 @@ object GraffitiTextures {
                 if (parts.size != 7) return null
                 val width = parts[0].toFloatOrNull() ?: return null
                 val height = parts[1].toFloatOrNull() ?: return null
-                val backgroundColor = parts[2].toUIntOrNull(16)?.toInt() ?: return null
-                val textColor = parts[3].toUIntOrNull(16)?.toInt() ?: return null
+                val backgroundColor = RgbColor.parseHex(parts[2]) ?: return null
+                val textColor = RgbColor.parseHex(parts[3]) ?: return null
                 val fontScale = parts[4].toFloatOrNull() ?: return null
                 val textAlignment = BannerTextAlignment.bySerializedName(parts[5])
                 val text = decodeKeyPart(parts[6]) ?: return null

@@ -3,15 +3,14 @@ package cuitteacon26.thestreetism.entity
 import cuitteacon26.thestreetism.Thestreetism
 import cuitteacon26.thestreetism.banner.BannerGeometry
 import cuitteacon26.thestreetism.banner.BannerTextAlignment
+import cuitteacon26.thestreetism.color.RgbColor
 import cuitteacon26.thestreetism.client.GraffitiTextures
 import cuitteacon26.thestreetism.menu.BannerMenuProvider
-import cuitteacon26.thestreetism.graffiti.GraffitiRegistry
 import net.minecraft.core.BlockPos
 import net.minecraft.core.Direction
 import net.minecraft.network.syncher.EntityDataAccessor
 import net.minecraft.network.syncher.EntityDataSerializers
 import net.minecraft.network.syncher.SynchedEntityData
-import net.minecraft.resources.Identifier
 import net.minecraft.server.level.ServerLevel
 import net.minecraft.world.InteractionHand
 import net.minecraft.world.InteractionResult
@@ -46,6 +45,10 @@ object ModEntities {
     val BANNER by REGISTRY.registerEntityType("banner", ::BannerEntity, MobCategory.MISC) { builder ->
         builder.noLootTable().sized(1.0f, 1.0f).clientTrackingRange(10).updateInterval(10)
     }
+
+    val SKATEBOARD by REGISTRY.registerEntityType("skateboard", ::SkateboardEntity, MobCategory.MISC) { builder ->
+        builder.noLootTable().sized(0.9f, 0.26f).clientTrackingRange(10).updateInterval(1)
+    }
 }
 
 class GraffitiEntity(type: EntityType<out GraffitiEntity>, level: Level) : Entity(type, level) {
@@ -54,12 +57,14 @@ class GraffitiEntity(type: EntityType<out GraffitiEntity>, level: Level) : Entit
         position: Vec3,
         attachedBlockPos: BlockPos,
         facing: Direction,
-        definition: GraffitiRegistry.GraffitiDefinition,
+        textureKey: String,
+        width: Float,
+        height: Float,
         owner: UUID?,
     ) : this(ModEntities.GRAFFITI, level) {
-        setTextureId(definition.id)
-        setWidth(definition.width)
-        setHeight(definition.height)
+        setTextureKey(textureKey)
+        setWidth(width)
+        setHeight(height)
         setAttachedBlockPos(attachedBlockPos)
         setFacing(facing)
         setOwner(owner)
@@ -73,7 +78,7 @@ class GraffitiEntity(type: EntityType<out GraffitiEntity>, level: Level) : Entit
         private set(value) = setOwner(value)
 
     override fun defineSynchedData(entityData: SynchedEntityData.Builder) {
-        entityData.define(DATA_TEXTURE_ID, GraffitiRegistry.DEFAULT.id.toString())
+        entityData.define(DATA_TEXTURE_ID, "")
         entityData.define(DATA_WIDTH, 1.0f)
         entityData.define(DATA_HEIGHT, 1.0f)
         entityData.define(DATA_FACING, Direction.NORTH)
@@ -97,22 +102,7 @@ class GraffitiEntity(type: EntityType<out GraffitiEntity>, level: Level) : Entit
 
     override fun makeBoundingBox(position: Vec3): AABB = thinSurfaceBoundingBox(position)
 
-    fun textureId(): Identifier {
-        val key = textureKey()
-        val localKey = key.removePrefix("local:")
-        val parsed = Identifier.tryParse(localKey) ?: return GraffitiRegistry.DEFAULT.id
-        return if (parsed.namespace == "minecraft" && !localKey.contains(':')) {
-            Identifier.fromNamespaceAndPath(Thestreetism.ID, parsed.path)
-        } else {
-            parsed
-        }
-    }
-
     fun textureKey(): String = entityData.get(DATA_TEXTURE_ID)
-
-    fun definition(): GraffitiRegistry.GraffitiDefinition = GraffitiRegistry.get(textureId())
-
-    fun texture(): Identifier = definition().texture
 
     fun graffitiWidth(): Float = entityData.get(DATA_WIDTH)
 
@@ -123,8 +113,6 @@ class GraffitiEntity(type: EntityType<out GraffitiEntity>, level: Level) : Entit
     fun graffitiRotation(): Float = entityData.get(DATA_ROTATION)
 
     fun attachedBlockPos(): BlockPos = entityData.get(DATA_ATTACHED_BLOCK_POS)
-
-    fun setTextureId(id: Identifier) = entityData.set(DATA_TEXTURE_ID, id.toString())
 
     fun setTextureKey(key: String) = entityData.set(DATA_TEXTURE_ID, key)
 
@@ -197,11 +185,10 @@ class GraffitiEntity(type: EntityType<out GraffitiEntity>, level: Level) : Entit
     }
 
     override fun readAdditionalSaveData(input: ValueInput) {
-        val textureKey = input.getString("texture").orElse(GraffitiRegistry.DEFAULT.id.toString())
+        val textureKey = input.getString("texture").orElse("")
         setTextureKey(textureKey)
-        val loadedDefinition = definition()
-        setWidth(input.getFloatOr("width", loadedDefinition.width))
-        setHeight(input.getFloatOr("height", loadedDefinition.height))
+        setWidth(input.getFloatOr("width", 1.0f))
+        setHeight(input.getFloatOr("height", 1.0f))
         setGraffitiRotation(input.getFloatOr("rotation", 0.0f))
         setFacing(input.read("facing", Direction.CODEC).orElse(Direction.NORTH))
         setAttachedBlockPos(input.read("attachedBlockPos", BlockPos.CODEC).orElse(BlockPos.containing(position())))
@@ -371,9 +358,9 @@ class BannerEntity(type: EntityType<out BannerEntity>, level: Level) : Entity(ty
 
     fun setBannerHeight(height: Float) = entityData.set(DATA_HEIGHT, sanitizeBannerHeight(height))
 
-    fun setBackgroundColor(color: Int) = entityData.set(DATA_BACKGROUND_COLOR, normalizeColor(color))
+    fun setBackgroundColor(color: Int) = entityData.set(DATA_BACKGROUND_COLOR, RgbColor.opaqueArgb(color))
 
-    fun setTextColor(color: Int) = entityData.set(DATA_TEXT_COLOR, normalizeColor(color))
+    fun setTextColor(color: Int) = entityData.set(DATA_TEXT_COLOR, RgbColor.opaqueArgb(color))
 
     fun setText(text: String) = entityData.set(DATA_TEXT, text.take(MAX_TEXT_LENGTH))
 
@@ -481,6 +468,5 @@ class BannerEntity(type: EntityType<out BannerEntity>, level: Level) : Entity(ty
             return if (scale.isFinite() && scale > 0.1f) scale.coerceAtMost(8.0f) else DEFAULT_FONT_SCALE
         }
 
-        private fun normalizeColor(color: Int): Int = color or 0xFF000000.toInt()
     }
 }

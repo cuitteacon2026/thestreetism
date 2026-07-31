@@ -100,8 +100,6 @@ data class FlagEditorOpenPayload(
     val fontId: String,
     val styleJson: String,
     val customName: String,
-    val width: Int,
-    val height: Int,
 ) : CustomPacketPayload {
 
     override fun type(): CustomPacketPayload.Type<FlagEditorOpenPayload> = TYPE
@@ -116,8 +114,6 @@ data class FlagEditorOpenPayload(
             ByteBufCodecs.STRING_UTF8, FlagEditorOpenPayload::fontId,
             ByteBufCodecs.STRING_UTF8, FlagEditorOpenPayload::styleJson,
             ByteBufCodecs.STRING_UTF8, FlagEditorOpenPayload::customName,
-            ByteBufCodecs.INT, FlagEditorOpenPayload::width,
-            ByteBufCodecs.INT, FlagEditorOpenPayload::height,
             ::FlagEditorOpenPayload,
         )
 
@@ -127,8 +123,6 @@ data class FlagEditorOpenPayload(
             fontId = controller.fontId,
             styleJson = controller.styleJson,
             customName = controller.customName,
-            width = controller.flagWidth,
-            height = controller.flagHeight,
         )
 
         fun handle(payload: FlagEditorOpenPayload, ctx: IPayloadContext) {
@@ -140,8 +134,6 @@ data class FlagEditorOpenPayload(
                         initialFont = payload.fontId,
                         initialStyleJson = payload.styleJson,
                         initialName = payload.customName,
-                        flagWidth = payload.width,
-                        flagHeight = payload.height,
                     )
                 )
             }

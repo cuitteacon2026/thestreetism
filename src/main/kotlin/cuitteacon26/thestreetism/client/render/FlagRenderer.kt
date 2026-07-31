@@ -81,14 +81,17 @@ class FlagRenderer(ctx: BlockEntityRendererProvider.Context) : BlockEntityRender
             ?: return
 
         collector.submitCustomGeometry(poseStack, RenderTypes.entityTranslucent(atlas.textureId, false)) { pose, buf ->
+            val flipU = state.plane == Plane.XY
             for (row in 0 until mesh.rows) {
                 for (col in 0 until mesh.cols) {
                     val tl = animationTarget[mesh.index(col, row)]
                     val tr = animationTarget[mesh.index(col + 1, row)]
                     val br = animationTarget[mesh.index(col + 1, row + 1)]
                     val bl = animationTarget[mesh.index(col, row + 1)]
-                    val u0 = col.toFloat() / mesh.cols
-                    val u1 = (col + 1).toFloat() / mesh.cols
+                    val rawU0 = col.toFloat() / mesh.cols
+                    val rawU1 = (col + 1).toFloat() / mesh.cols
+                    val u0 = if (flipU) 1.0f - rawU0 else rawU0
+                    val u1 = if (flipU) 1.0f - rawU1 else rawU1
                     val v0 = row.toFloat() / mesh.rows
                     val v1 = (row + 1).toFloat() / mesh.rows
                     addQuad(buf, pose, tl, tr, br, bl, u0, u1, v0, v1, state.lightCoords, normal)

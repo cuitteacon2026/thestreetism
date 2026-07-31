@@ -1,6 +1,7 @@
 package cuitteacon26.thestreetism.client.gui
 
 import cuitteacon26.thestreetism.banner.BannerTextAlignment
+import cuitteacon26.thestreetism.color.RgbColor
 import cuitteacon26.thestreetism.entity.BannerEntity
 import cuitteacon26.thestreetism.menu.BannerEditorMenu
 import cuitteacon26.thestreetism.network.BannerUpdatePayload
@@ -18,7 +19,7 @@ class BannerEditorScreen(
     private val editorMenu: BannerEditorMenu,
     playerInventory: Inventory,
     titleText: Component,
-) : AbstractContainerScreen<BannerEditorMenu>(editorMenu, playerInventory, titleText, 360, 238) {
+) : AbstractContainerScreen<BannerEditorMenu>(editorMenu, playerInventory, titleText, 360, 190) {
     private lateinit var textBox: MultiLineEditBox
     private lateinit var fontScaleBox: EditBox
     private lateinit var colorBox: EditBox
@@ -42,8 +43,8 @@ class BannerEditorScreen(
         super.init()
         currentText = editorMenu.initialText
         currentFontScale = editorMenu.initialFontScale
-        currentBackgroundColor = editorMenu.initialBackgroundColor
-        currentTextColor = editorMenu.initialTextColor
+        currentBackgroundColor = RgbColor.opaqueArgb(editorMenu.initialBackgroundColor)
+        currentTextColor = RgbColor.opaqueArgb(editorMenu.initialTextColor)
         currentAlignment = editorMenu.initialTextAlignment
 
         val panelX = leftPos + 16
@@ -85,9 +86,10 @@ class BannerEditorScreen(
         addRenderableWidget(plusScaleButton)
 
         colorBox = EditBox(font, controlsX, controlsY + 52, 94, 18, Component.literal("Color"))
-        colorBox.value = formatColor(currentBackgroundColor)
+        colorBox.setMaxLength(RgbColor.HEX_LENGTH)
+        colorBox.value = RgbColor.formatHex(currentBackgroundColor)
         colorBox.setResponder {
-            currentBackgroundColor = parseColor(it, currentBackgroundColor)
+            RgbColor.parseHex(it)?.let { color -> currentBackgroundColor = color }
         }
         addRenderableWidget(colorBox)
 
@@ -104,9 +106,10 @@ class BannerEditorScreen(
         addRenderableWidget(lightenButton)
 
         textColorBox = EditBox(font, controlsX, controlsY + 114, 94, 18, Component.literal("Font color"))
-        textColorBox.value = formatColor(currentTextColor)
+        textColorBox.setMaxLength(RgbColor.HEX_LENGTH)
+        textColorBox.value = RgbColor.formatHex(currentTextColor)
         textColorBox.setResponder {
-            currentTextColor = parseColor(it, currentTextColor)
+            RgbColor.parseHex(it)?.let { color -> currentTextColor = color }
         }
         addRenderableWidget(textColorBox)
 
@@ -144,51 +147,18 @@ class BannerEditorScreen(
 
     override fun extractContents(graphics: GuiGraphicsExtractor, mouseX: Int, mouseY: Int, partialTick: Float) {
         extractEditorBackground(graphics)
-        extractPreview(graphics)
         graphics.text(font, Component.literal("Text"), leftPos + 16, topPos + 28, 0xFF404040.toInt())
         graphics.text(font, Component.literal("Font scale"), leftPos + 208, topPos + 28, 0xFF404040.toInt())
         graphics.text(font, Component.literal("Background"), leftPos + 208, topPos + 66, 0xFF404040.toInt())
-        graphics.text(font, Component.literal("Font color"), leftPos + 208, topPos + 104, 0xFF404040.toInt())
-        graphics.text(font, Component.literal("Preview"), leftPos + 16, topPos + 164, 0xFF404040.toInt())
+        graphics.text(font, Component.literal("Font color"), leftPos + 208, topPos + 128, 0xFF404040.toInt())
         super.extractContents(graphics, mouseX, mouseY, partialTick)
     }
 
     private fun extractEditorBackground(graphics: GuiGraphicsExtractor) {
         graphics.fill(RenderPipelines.GUI, leftPos, topPos, leftPos + imageWidth, topPos + imageHeight, 0xFFE9D3AA.toInt())
         graphics.outline(leftPos, topPos, imageWidth, imageHeight, 0xFF3F2D1A.toInt())
-        graphics.fill(RenderPipelines.GUI, leftPos + 10, topPos + 18, leftPos + 190, topPos + 154, 0x66FFFFFF)
-        graphics.fill(RenderPipelines.GUI, leftPos + 202, topPos + 18, leftPos + 334, topPos + 154, 0x66FFFFFF)
-        graphics.fill(RenderPipelines.GUI, leftPos + 10, topPos + 154, leftPos + 350, topPos + 228, 0x66FFFFFF)
-    }
-
-    private fun extractPreview(graphics: GuiGraphicsExtractor) {
-        val previewX = leftPos + 24
-        val previewY = topPos + 180
-        val previewWidth = 300
-        val previewHeight = 36
-        graphics.fill(RenderPipelines.GUI, previewX - 2, previewY - 2, previewX + previewWidth + 2, previewY + previewHeight + 2, 0xFF3F2D1A.toInt())
-        graphics.fill(RenderPipelines.GUI, previewX, previewY, previewX + previewWidth, previewY + previewHeight, currentBackgroundColor or 0xFF000000.toInt())
-        val lines = currentText.take(BannerEntity.MAX_TEXT_LENGTH).trimEnd().lines().take(4)
-        if (lines.isEmpty() || lines.all { it.isBlank() }) return
-
-        val textColor = currentTextColor or 0xFF000000.toInt()
-        val scale = currentFontScale.coerceIn(0.5f, 4.0f).coerceAtMost(2.0f)
-        val lineHeight = (font.lineHeight * scale).toInt().coerceAtLeast(1)
-        val totalHeight = lineHeight * lines.size
-        val originY = previewY + (previewHeight - totalHeight) / 2
-        graphics.pose().pushMatrix()
-        graphics.pose().scale(scale, scale)
-        lines.forEachIndexed { index, line ->
-            val lineWidth = font.width(line)
-            val x = when (currentAlignment) {
-                BannerTextAlignment.LEFT -> previewX + 8
-                BannerTextAlignment.CENTER -> previewX + (previewWidth - (lineWidth * scale).toInt()) / 2
-                BannerTextAlignment.RIGHT -> previewX + previewWidth - (lineWidth * scale).toInt() - 8
-            }
-            val y = originY + index * lineHeight
-            graphics.text(font, line, (x / scale).toInt(), (y / scale).toInt(), textColor, false)
-        }
-        graphics.pose().popMatrix()
+        graphics.fill(RenderPipelines.GUI, leftPos + 10, topPos + 18, leftPos + 190, topPos + 182, 0x66FFFFFF)
+        graphics.fill(RenderPipelines.GUI, leftPos + 202, topPos + 18, leftPos + 334, topPos + 182, 0x66FFFFFF)
     }
 
     private fun pushUpdate() {
@@ -207,8 +177,8 @@ class BannerEditorScreen(
 
     private fun syncControlFields() {
         fontScaleBox.value = formatScale(currentFontScale)
-        colorBox.value = formatColor(currentBackgroundColor)
-        textColorBox.value = formatColor(currentTextColor)
+        colorBox.value = RgbColor.formatHex(currentBackgroundColor)
+        textColorBox.value = RgbColor.formatHex(currentTextColor)
     }
 
     private fun syncAlignmentButtons() {
@@ -221,15 +191,7 @@ class BannerEditorScreen(
         return value.toFloatOrNull()?.coerceIn(0.5f, 4.0f) ?: currentFontScale
     }
 
-    private fun parseColor(value: String, fallback: Int): Int {
-        val normalized = value.removePrefix("#")
-        val parsed = normalized.toUIntOrNull(16)?.toInt() ?: return fallback
-        return if (normalized.length <= 6) parsed or 0xFF000000.toInt() else parsed
-    }
-
     private fun formatScale(value: Float): String = String.format(java.util.Locale.ROOT, "%.1f", value)
-
-    private fun formatColor(value: Int): String = String.format(java.util.Locale.ROOT, "%08X", value)
 
     private fun adjustColor(color: Int, delta: Int): Int {
         val a = color and -0x1000000

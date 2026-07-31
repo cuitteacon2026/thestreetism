@@ -79,7 +79,4 @@ class RichTextEditorWidget(
             lastValidJson
         }
     }
-
-    fun previewComponent(styleData: FlagStyleData): Component =
-        FlagTextSerialization.componentFromJson(serializedJson(styleData))
 }

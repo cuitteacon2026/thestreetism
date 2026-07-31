@@ -9,6 +9,8 @@
   "block.thestreetism.flag_pole": "Flag Pole",
   "block.thestreetism.flag_cloth": "Flag Cloth",
   "item.thestreetism.stitching_tool": "Stitching Tool",
+  "item.thestreetism.skateboard": "Skateboard",
+  "entity.thestreetism.skateboard": "Skateboard",
   "thestreetism.flag.stitch.invalid": "Invalid flag structure",
   "thestreetism.flag.error.not_cloth": "Right-click a cloth block to stitch",
   "thestreetism.flag.error.empty": "No cloth blocks found",
@@ -21,7 +23,6 @@
   "thestreetism.gui.flag_editor.text": "Flag Text",
   "thestreetism.gui.flag_editor.save": "Save",
   "thestreetism.gui.flag_editor.reload_fonts": "Reload Fonts",
-  "thestreetism.gui.flag_editor.preview": "Preview",
   "thestreetism.gui.flag_editor.font": "Font: %s",
   "thestreetism.gui.flag_editor.color": "Color",
   "thestreetism.gui.flag_editor.align": "Align",
@@ -30,5 +31,5 @@
   "thestreetism.gui.flag_editor.align_right": "Right",
   "thestreetism.gui.flag_editor.mode_text": "Text",
   "thestreetism.gui.flag_editor.mode_json": "JSON",
-  "thestreetism.gui.flag_editor.json_error": "Component JSON is invalid; using the last valid version."
+  "thestreetism.gui.flag_editor.json_error": "Invalid component JSON."
 }

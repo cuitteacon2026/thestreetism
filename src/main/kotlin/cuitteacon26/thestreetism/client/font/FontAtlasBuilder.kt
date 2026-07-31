@@ -1,6 +1,7 @@
 package cuitteacon26.thestreetism.client.font
 
 import cuitteacon26.thestreetism.Thestreetism
+import cuitteacon26.thestreetism.color.RgbColor
 import cuitteacon26.thestreetism.serialization.FlagStyleData
 import cuitteacon26.thestreetism.serialization.FlagTextAlignment
 import cuitteacon26.thestreetism.serialization.FlagTextSerialization
@@ -176,12 +177,11 @@ object FontAtlasBuilder {
         )
         graphics.font = awtFont
         val metrics = graphics.getFontMetrics(awtFont)
-        val rgb = style.color?.value ?: (styleData.textColor and 0xFFFFFF)
-        val alpha = (styleData.textColor ushr 24).takeIf { it > 0 } ?: 255
+        val rgb = style.color?.value ?: RgbColor.rgb(styleData.textColor)
         return DrawRun(
             text = text,
             font = awtFont,
-            color = Color((rgb shr 16) and 0xFF, (rgb shr 8) and 0xFF, rgb and 0xFF, alpha),
+            color = Color(RgbColor.opaqueArgb(rgb), true),
             underline = style.isUnderlined,
             strikethrough = style.isStrikethrough,
             width = metrics.stringWidth(text),
@@ -234,12 +234,7 @@ object FontAtlasBuilder {
         )
         for (y in 0 until image.height) {
             for (x in 0 until image.width) {
-                val argb = image.getRGB(x, y)
-                val a = (argb ushr 24) and 0xFF
-                val r = (argb ushr 16) and 0xFF
-                val g = (argb ushr 8) and 0xFF
-                val b = argb and 0xFF
-                nativeImage.setPixel(x, y, (a shl 24) or (b shl 16) or (g shl 8) or r)
+                nativeImage.setPixel(x, y, RgbColor.argbToAbgr(image.getRGB(x, y)))
             }
         }
 
