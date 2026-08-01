@@ -8,7 +8,7 @@ import cuitteacon26.thestreetism.entity.GraffitiEntity
 import cuitteacon26.thestreetism.entity.ModEntities
 import cuitteacon26.thestreetism.client.font.FontRegistry
 import cuitteacon26.thestreetism.client.gui.BannerEditorScreen
-import cuitteacon26.thestreetism.item.BannerItem
+import cuitteacon26.thestreetism.client.render.SkateboardRenderer
 import cuitteacon26.thestreetism.item.ModItems
 import cuitteacon26.thestreetism.menu.ModMenus
 import cuitteacon26.thestreetism.item.SprayCanItem
@@ -44,8 +44,6 @@ import net.neoforged.neoforge.common.NeoForge
 object ClientSetup {
     fun register() {
         NeoForge.EVENT_BUS.register(GraffitiPreviewRenderer)
-        NeoForge.EVENT_BUS.register(BannerPlacementPreviewRenderer)
-        NeoForge.EVENT_BUS.register(cuitteacon26.thestreetism.client.render.FlagPreviewRenderer)
     }
 
     fun onClientSetup(event: FMLClientSetupEvent) {
@@ -53,6 +51,7 @@ object ClientSetup {
             FontRegistry.reload()
             net.minecraft.client.renderer.entity.EntityRenderers.register(ModEntities.GRAFFITI, ::GraffitiRenderer)
             net.minecraft.client.renderer.entity.EntityRenderers.register(ModEntities.BANNER, ::BannerRenderer)
+            net.minecraft.client.renderer.entity.EntityRenderers.register(ModEntities.SKATEBOARD, ::SkateboardRenderer)
             net.minecraft.client.renderer.blockentity.BlockEntityRenderers.register(
                 cuitteacon26.thestreetism.blockentity.ModBlockEntities.FLAG_CONTROLLER,
                 net.minecraft.client.renderer.blockentity.BlockEntityRendererProvider { ctx ->
@@ -181,90 +180,6 @@ object GraffitiPreviewRenderer {
             color,
         )
         SurfaceRenderUtil.submitCenterIndicator(poseStack, event.submitNodeCollector, 15728880, centerColor)
-        poseStack.popPose()
-    }
-}
-
-@EventBusSubscriber(modid = Thestreetism.ID, value = [Dist.CLIENT])
-object BannerPlacementPreviewRenderer {
-    @SubscribeEvent
-    fun onSubmitCustomGeometry(event: SubmitCustomGeometryEvent) {
-        val minecraft = Minecraft.getInstance()
-        val player = minecraft.player ?: return
-        val bannerStack = when {
-            player.mainHandItem.item == ModItems.BANNER -> player.mainHandItem
-            player.offhandItem.item == ModItems.BANNER -> player.offhandItem
-            else -> return
-        }
-        val hit = minecraft.hitResult as? BlockHitResult ?: return
-        if (hit.type != HitResult.Type.BLOCK) return
-
-        val level = minecraft.level ?: return
-        val hitAnchor = BannerGeometry.Anchor(hit.blockPos, hit.direction)
-        val valid = level.getBlockState(hit.blockPos).isCollisionShapeFullBlock(level, hit.blockPos) &&
-            player.isWithinBlockInteractionRange(hit.blockPos, 0.0) &&
-            BannerGeometry.isValidAnchorFace(hitAnchor.face)
-        if (!valid) return
-
-        val state = BannerItem.getPlacementState(bannerStack)
-        val camera = event.levelRenderState.cameraRenderState.pos
-        val poseStack = event.poseStack
-
-        when {
-            state.anchorA == null -> {
-                renderAnchorMarker(hitAnchor, camera, poseStack, event.submitNodeCollector, 0xCC55FFFF.toInt())
-            }
-
-            state.anchorB == null -> {
-                renderAnchorMarker(state.anchorA, camera, poseStack, event.submitNodeCollector, 0xCC55FFFF.toInt())
-                if (BannerGeometry.canShareSurface(state.anchorA, hitAnchor)) {
-                    renderAnchorMarker(hitAnchor, camera, poseStack, event.submitNodeCollector, 0xCCFFFFFF.toInt())
-                }
-            }
-
-            else -> {
-                val previewHeight = BannerGeometry.previewHeight(state.anchorA, state.anchorB, hit.location)
-                val placement = BannerGeometry.create(state.anchorA, state.anchorB, previewHeight)
-                submitPreviewBanner(poseStack, event.submitNodeCollector, camera, placement)
-                renderAnchorMarker(state.anchorA, camera, poseStack, event.submitNodeCollector, 0xCC55FFFF.toInt())
-                renderAnchorMarker(state.anchorB, camera, poseStack, event.submitNodeCollector, 0xCC55FFFF.toInt())
-            }
-        }
-    }
-
-    private fun submitPreviewBanner(
-        poseStack: PoseStack,
-        collector: SubmitNodeCollector,
-        camera: Vec3,
-        placement: BannerGeometry.Placement,
-    ) {
-        SurfaceRenderUtil.submitWorldQuad(
-            poseStack,
-            collector,
-            RenderTypes.entityTranslucent(SurfaceRenderUtil.previewTexture(), false),
-            placement.topLeft.subtract(camera),
-            placement.topRight.subtract(camera),
-            placement.bottomRight.subtract(camera),
-            placement.bottomLeft.subtract(camera),
-            15728880,
-            0x6655FFFF,
-            false,
-        )
-    }
-
-    private fun renderAnchorMarker(
-        anchor: BannerGeometry.Anchor,
-        camera: Vec3,
-        poseStack: PoseStack,
-        collector: SubmitNodeCollector,
-        color: Int,
-    ) {
-        val surfaceCenter = BannerGeometry.surfaceCenter(anchor)
-        poseStack.pushPose()
-        poseStack.translate(surfaceCenter.x - camera.x, surfaceCenter.y - camera.y, surfaceCenter.z - camera.z)
-        SurfaceRenderUtil.translateRenderOffset(poseStack, anchor.face)
-        SurfaceRenderUtil.orientToFace(poseStack, anchor.face)
-        SurfaceRenderUtil.submitCenterIndicator(poseStack, collector, 15728880, color)
         poseStack.popPose()
     }
 }

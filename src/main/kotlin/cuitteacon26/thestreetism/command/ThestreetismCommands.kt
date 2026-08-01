@@ -3,20 +3,19 @@ package cuitteacon26.thestreetism.command
 import com.mojang.brigadier.arguments.FloatArgumentType
 import com.mojang.brigadier.arguments.StringArgumentType
 import cuitteacon26.thestreetism.Thestreetism
-import cuitteacon26.thestreetism.graffiti.GraffitiRegistry
 import cuitteacon26.thestreetism.item.ModItems
 import cuitteacon26.thestreetism.item.SprayCanItem
 import net.minecraft.commands.Commands
 import net.minecraft.network.chat.Component
 import net.neoforged.neoforge.event.RegisterCommandsEvent
+import java.net.URI
 
 object ThestreetismCommands {
     fun register(event: RegisterCommandsEvent) {
         event.dispatcher.register(
             Commands.literal(Thestreetism.ID)
-                .then(sprayCanCommand("spraycan"))
+                .then(sprayCanCommand())
                 .then(spraySizeCommand())
-                .then(Commands.literal("spraylist").executes { context -> listGraffiti(context.source.playerOrException) })
         )
     }
 
@@ -36,36 +35,32 @@ object ThestreetismCommands {
                     )
             )
 
-    private fun sprayCanCommand(name: String) =
-        Commands.literal(name)
-            .then(
-                Commands.argument("name", StringArgumentType.string())
-                    .executes { context -> setSprayCan(context.source.playerOrException, "local", StringArgumentType.getString(context, "name")) }
-            )
-            .then(
-                Commands.literal("local")
-                    .then(
-                        Commands.argument("name", StringArgumentType.string())
-                            .executes { context -> setSprayCan(context.source.playerOrException, "local", StringArgumentType.getString(context, "name")) }
-                    )
-            )
+    private fun sprayCanCommand() =
+        Commands.literal("spraycan")
             .then(
                 Commands.literal("remote")
                     .then(
                         Commands.argument("url", StringArgumentType.greedyString())
-                            .executes { context -> setSprayCan(context.source.playerOrException, "remote", StringArgumentType.getString(context, "url")) }
+                            .executes { context -> setRemoteSprayCan(context.source.playerOrException, StringArgumentType.getString(context, "url")) }
                     )
             )
 
-    private fun setSprayCan(player: net.minecraft.server.level.ServerPlayer, source: String, value: String): Int {
+    private fun setRemoteSprayCan(player: net.minecraft.server.level.ServerPlayer, value: String): Int {
         val stack = player.mainHandItem
         if (stack.item != ModItems.SPRAY_CAN) {
             player.sendSystemMessage(Component.literal("请先把喷漆罐拿在主手。"))
             return 0
         }
 
-        SprayCanItem.setGraffitiSelection(stack, source, value)
-        player.sendSystemMessage(Component.literal("喷漆罐图案已设置为 $source:$value"))
+        val url = value.trim()
+        val uri = runCatching { URI(url) }.getOrNull()
+        if (uri?.scheme?.lowercase() !in setOf("http", "https") || uri?.host.isNullOrBlank()) {
+            player.sendSystemMessage(Component.literal("喷漆图片必须使用有效的 HTTP/HTTPS URL。"))
+            return 0
+        }
+
+        SprayCanItem.setRemoteGraffitiUrl(stack, url)
+        player.sendSystemMessage(Component.literal("喷漆罐远程图片已更新。"))
         return 1
     }
 
@@ -79,11 +74,5 @@ object ThestreetismCommands {
         SprayCanItem.setGraffitiSize(stack, length, width)
         player.sendSystemMessage(Component.literal("喷漆尺寸已设置为 ${length}x${width}"))
         return 1
-    }
-
-    private fun listGraffiti(player: net.minecraft.server.level.ServerPlayer): Int {
-        val names = GraffitiRegistry.BUILT_INS.joinToString(", ") { it.id.path }
-        player.sendSystemMessage(Component.literal("可用 local 喷漆: $names"))
-        return GraffitiRegistry.BUILT_INS.size
     }
 }

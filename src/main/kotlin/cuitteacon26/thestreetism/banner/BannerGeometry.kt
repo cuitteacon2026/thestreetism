@@ -65,7 +65,7 @@ object BannerGeometry {
         )
     }
 
-    fun previewHeight(anchorA: Anchor, anchorB: Anchor, sample: Vec3): Float {
+    fun placementHeight(anchorA: Anchor, anchorB: Anchor, sample: Vec3): Float {
         val topY = max(surfaceCenter(anchorA).y, surfaceCenter(anchorB).y)
         return sanitizeHeight((topY - sample.y).toFloat())
     }

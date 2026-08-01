@@ -7,11 +7,10 @@ import cuitteacon26.thestreetism.banner.BannerGeometry
 import cuitteacon26.thestreetism.banner.BannerTextAlignment
 import cuitteacon26.thestreetism.entity.BannerEntity
 import cuitteacon26.thestreetism.entity.GraffitiEntity
-import cuitteacon26.thestreetism.graffiti.GraffitiRegistry
 import net.minecraft.core.BlockPos
 import net.minecraft.core.Direction
 import net.minecraft.core.component.DataComponents
-import net.minecraft.resources.Identifier
+import net.minecraft.network.chat.Component
 import net.minecraft.sounds.SoundEvents
 import net.minecraft.world.InteractionHand
 import net.minecraft.world.InteractionResult
@@ -36,6 +35,7 @@ object ModItems {
     val PIGMENT_BAG by REGISTRY.registerItem("pigment_bag", { props -> PigmentBagItem(props) }, java.util.function.UnaryOperator<Item.Properties> { it.stacksTo(1).durability(5) })
     val BANNER by REGISTRY.registerItem("banner", { props -> BannerItem(props) }, java.util.function.UnaryOperator<Item.Properties> { it.stacksTo(1).durability(100) })
     val STITCHING_TOOL by REGISTRY.registerItem("stitching_tool", { props -> StitchingToolItem(props) }, java.util.function.UnaryOperator<Item.Properties> { it.stacksTo(1).durability(50) })
+    val SKATEBOARD by REGISTRY.registerItem("skateboard", { props -> SkateboardItem(props) }, java.util.function.UnaryOperator<Item.Properties> { it.stacksTo(1) })
     val FLAG_POLE = REGISTRY.registerSimpleBlockItem(ModBlocks.FLAG_POLE)
     val FLAG_CLOTH = REGISTRY.registerSimpleBlockItem(ModBlocks.FLAG_CLOTH)
 }
@@ -51,13 +51,18 @@ class SprayCanItem(properties: Properties) : Item(properties) {
         }
         val state = level.getBlockState(targetPos)
         if (!state.isCollisionShapeFullBlock(level, targetPos)) return InteractionResult.FAIL
+        val textureKey = selectedRemoteTextureKey(context.itemInHand)
+        if (textureKey == null) {
+            if (!level.isClientSide) {
+                player.sendSystemMessage(Component.literal("请设置喷漆纹理。"))
+            }
+            return InteractionResult.FAIL
+        }
         if (level.isClientSide) return InteractionResult.SUCCESS
 
-        val definition = selectedDefinition(context.itemInHand)
         val size = selectedSize(context.itemInHand)
         val position = context.clickLocation
-        val graffiti = GraffitiEntity(level, position, targetPos, face, definition.copy(width = size.first, height = size.second), player.uuid)
-        selectedTextureKey(context.itemInHand)?.let { graffiti.setTextureKey(it) }
+        val graffiti = GraffitiEntity(level, position, targetPos, face, textureKey, size.first, size.second, player.uuid)
         if (!level.noBlockCollision(graffiti, graffiti.boundingBox) || !level.noBorderCollision(graffiti, graffiti.boundingBox) || !graffiti.hasSupport()) {
             return InteractionResult.FAIL
         }
@@ -68,16 +73,10 @@ class SprayCanItem(properties: Properties) : Item(properties) {
         return InteractionResult.SUCCESS
     }
 
-    private fun selectedDefinition(stack: ItemStack): GraffitiRegistry.GraffitiDefinition {
+    private fun selectedRemoteTextureKey(stack: ItemStack): String? {
         val data = stack.getOrDefault(DataComponents.CUSTOM_DATA, CustomData.EMPTY).copyTag()
-        if (data.getStringOr(SOURCE_KEY, LOCAL_SOURCE) != LOCAL_SOURCE) return GraffitiRegistry.DEFAULT
-        val id = Identifier.tryParse(data.getStringOr(VALUE_KEY, "")) ?: return GraffitiRegistry.DEFAULT
-        return GraffitiRegistry.get(id)
-    }
-
-    private fun selectedTextureKey(stack: ItemStack): String? {
-        val data = stack.getOrDefault(DataComponents.CUSTOM_DATA, CustomData.EMPTY).copyTag()
-        val source = data.getStringOr(SOURCE_KEY, LOCAL_SOURCE)
+        val source = data.getStringOr(SOURCE_KEY, "")
+        if (source != REMOTE_SOURCE) return null
         val value = data.getStringOr(VALUE_KEY, "")
         if (value.isBlank()) return null
         return "$source:$value"
@@ -90,7 +89,7 @@ class SprayCanItem(properties: Properties) : Item(properties) {
         private const val VALUE_KEY = "thestreetism_graffiti_value"
         private const val WIDTH_KEY = "thestreetism_graffiti_width"
         private const val HEIGHT_KEY = "thestreetism_graffiti_height"
-        private const val LOCAL_SOURCE = "local"
+        private const val REMOTE_SOURCE = "remote"
         private const val DEFAULT_GRAFFITI_SIZE = 1.0f
 
         fun getGraffitiSize(stack: ItemStack): Pair<Float, Float> {
@@ -100,10 +99,10 @@ class SprayCanItem(properties: Properties) : Item(properties) {
             return Pair(width, height)
         }
 
-        fun setGraffitiSelection(stack: ItemStack, source: String, value: String) {
+        fun setRemoteGraffitiUrl(stack: ItemStack, url: String) {
             CustomData.update(DataComponents.CUSTOM_DATA, stack) { tag ->
-                tag.putString(SOURCE_KEY, source)
-                tag.putString(VALUE_KEY, value)
+                tag.putString(SOURCE_KEY, REMOTE_SOURCE)
+                tag.putString(VALUE_KEY, url)
             }
         }
 
@@ -165,7 +164,7 @@ class BannerItem(properties: Properties) : Item(properties) {
             return InteractionResult.FAIL
         }
 
-        val height = BannerGeometry.previewHeight(anchorA, anchorB, context.clickLocation)
+        val height = BannerGeometry.placementHeight(anchorA, anchorB, context.clickLocation)
         val banner = BannerEntity(
             level,
             anchorA,

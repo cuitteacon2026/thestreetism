@@ -22,6 +22,7 @@ object ModCreativeTabs {
                 output.accept(ModItems.PIGMENT_BAG)
                 output.accept(ModItems.BANNER)
                 output.accept(ModItems.STITCHING_TOOL)
+                output.accept(ModItems.SKATEBOARD)
                 output.accept(ModItems.FLAG_POLE)
                 output.accept(ModItems.FLAG_CLOTH)
             }

@@ -9,6 +9,8 @@
   "block.thestreetism.flag_pole": "旗杆",
   "block.thestreetism.flag_cloth": "旗布",
   "item.thestreetism.stitching_tool": "缝合工具",
+  "item.thestreetism.skateboard": "滑板",
+  "entity.thestreetism.skateboard": "滑板",
   "thestreetism.flag.stitch.invalid": "旗帜结构无效",
   "thestreetism.flag.error.not_cloth": "右键单击布块进行缝合",
   "thestreetism.flag.error.empty": "未找到布块",
@@ -21,7 +23,6 @@
   "thestreetism.gui.flag_editor.text": "旗帜文字",
   "thestreetism.gui.flag_editor.save": "保存",
   "thestreetism.gui.flag_editor.reload_fonts": "重新加载字体",
-  "thestreetism.gui.flag_editor.preview": "预览",
   "thestreetism.gui.flag_editor.font": "字体：%s",
   "thestreetism.gui.flag_editor.color": "颜色",
   "thestreetism.gui.flag_editor.align": "对齐",
@@ -30,5 +31,5 @@
   "thestreetism.gui.flag_editor.align_right": "右对齐",
   "thestreetism.gui.flag_editor.mode_text": "文本",
   "thestreetism.gui.flag_editor.mode_json": "JSON",
-  "thestreetism.gui.flag_editor.json_error": "组件 JSON 无效，当前预览仍使用上一次合法内容。"
+  "thestreetism.gui.flag_editor.json_error": "组件 JSON 无效。"
 }

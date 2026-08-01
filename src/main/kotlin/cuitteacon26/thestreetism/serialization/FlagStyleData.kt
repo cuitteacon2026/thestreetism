@@ -2,6 +2,7 @@ package cuitteacon26.thestreetism.serialization
 
 import com.google.gson.JsonObject
 import com.google.gson.JsonParser
+import cuitteacon26.thestreetism.color.RgbColor
 import net.minecraft.network.chat.Style
 import net.minecraft.network.chat.TextColor
 
@@ -28,7 +29,7 @@ data class FlagStyleData(
 ) {
     fun toJson(): String {
         val json = JsonObject()
-        json.addProperty("textColor", textColor)
+        json.addProperty("textColor", RgbColor.opaqueArgb(textColor))
         json.addProperty("bold", bold)
         json.addProperty("italic", italic)
         json.addProperty("underline", underline)
@@ -40,7 +41,7 @@ data class FlagStyleData(
     }
 
     fun toStyle(): Style {
-        var style = Style.EMPTY.withColor(TextColor.fromRgb(textColor and 0xFFFFFF))
+        var style = Style.EMPTY.withColor(TextColor.fromRgb(RgbColor.rgb(textColor)))
         style = style.withBold(bold)
         style = style.withItalic(italic)
         style = style.withUnderlined(underline)
@@ -56,7 +57,7 @@ data class FlagStyleData(
             return runCatching {
                 val json = JsonParser.parseString(raw).asJsonObject
                 FlagStyleData(
-                    textColor = json.get("textColor")?.asInt ?: DEFAULT.textColor,
+                    textColor = RgbColor.opaqueArgb(json.get("textColor")?.asInt ?: DEFAULT.textColor),
                     bold = json.get("bold")?.asBoolean ?: DEFAULT.bold,
                     italic = json.get("italic")?.asBoolean ?: DEFAULT.italic,
                     underline = json.get("underline")?.asBoolean ?: DEFAULT.underline,

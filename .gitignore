@@ -1,9 +1,60 @@
-.gradle/
-.kotlin/
-build/
-run/
+# Gradle and Kotlin build state
+/.gradle/
+/.kotlin/
+/build/
+/out/
+/bin/
+/classes/
+/local.properties
 
-.idea/
+# IDE and editor metadata
+/.idea/
+/.vscode/
+/.fleet/
+/.settings/
+/.metadata/
+/.classpath
+/.project
 *.iml
+*.ipr
+*.iws
+*.launch
 
-ERRORLogs/
+# Minecraft and NeoForge development runs
+/run/
+/runs/
+/run-*/
+/eclipse/
+/logs/
+/crash-reports/
+/ERRORLogs/
+
+# Data generator cache (generated resources themselves remain tracked)
+/src/generated/resources/.cache/
+
+# Java/Kotlin artifacts and crash dumps outside build directories
+*.class
+*.hprof
+hs_err_pid*
+replay_pid*
+
+# Logs, temporary files, and editor backups
+*.log
+*.tmp
+*.temp
+*.bak
+*.orig
+*.rej
+*.swp
+*.swo
+*~
+
+# Local environment files
+.env
+.env.*
+!.env.example
+
+# Operating-system metadata
+.DS_Store
+Thumbs.db
+Desktop.ini
