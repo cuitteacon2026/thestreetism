@@ -16,6 +16,9 @@ object BannerNetwork {
         val player = context.player() as? net.minecraft.server.level.ServerPlayer ?: return
         context.enqueueWork {
             val entity = player.level().getEntity(payload.entityId) as? BannerEntity ?: return@enqueueWork
+            // Never trust a client-supplied entity id: confirm the sender is
+            // actually next to this banner before letting them rewrite it.
+            if (!entity.isAlive || player.distanceToSqr(entity) > MAX_EDIT_DISTANCE_SQR) return@enqueueWork
             entity.setBackgroundColor(payload.backgroundColor)
             entity.setTextColor(payload.textColor)
             entity.setText(payload.text)
@@ -36,6 +39,9 @@ object BannerNetwork {
             entity.setTextAlignment(payload.textAlignment)
         }
     }
+
+    /** Matches the reach check already used by [cuitteacon26.thestreetism.menu.BannerEditorMenu]. */
+    private const val MAX_EDIT_DISTANCE_SQR = 64.0
 }
 
 data class BannerUpdatePayload(

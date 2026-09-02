@@ -5,10 +5,10 @@ import com.mojang.brigadier.arguments.StringArgumentType
 import cuitteacon26.thestreetism.Thestreetism
 import cuitteacon26.thestreetism.item.ModItems
 import cuitteacon26.thestreetism.item.SprayCanItem
+import cuitteacon26.thestreetism.remote.RemoteImageUrl
 import net.minecraft.commands.Commands
 import net.minecraft.network.chat.Component
 import net.neoforged.neoforge.event.RegisterCommandsEvent
-import java.net.URI
 
 object ThestreetismCommands {
     fun register(event: RegisterCommandsEvent) {
@@ -48,31 +48,33 @@ object ThestreetismCommands {
     private fun setRemoteSprayCan(player: net.minecraft.server.level.ServerPlayer, value: String): Int {
         val stack = player.mainHandItem
         if (stack.item != ModItems.SPRAY_CAN) {
-            player.sendSystemMessage(Component.literal("请先把喷漆罐拿在主手。"))
+            player.sendSystemMessage(Component.translatable("thestreetism.spray.not_holding"))
             return 0
         }
 
-        val url = value.trim()
-        val uri = runCatching { URI(url) }.getOrNull()
-        if (uri?.scheme?.lowercase() !in setOf("http", "https") || uri?.host.isNullOrBlank()) {
-            player.sendSystemMessage(Component.literal("喷漆图片必须使用有效的 HTTP/HTTPS URL。"))
-            return 0
-        }
+        return when (val result = RemoteImageUrl.normalize(value)) {
+            is RemoteImageUrl.Result.Invalid -> {
+                player.sendSystemMessage(Component.translatable(result.translationKey))
+                0
+            }
 
-        SprayCanItem.setRemoteGraffitiUrl(stack, url)
-        player.sendSystemMessage(Component.literal("喷漆罐远程图片已更新。"))
-        return 1
+            is RemoteImageUrl.Result.Valid -> {
+                SprayCanItem.setRemoteGraffitiUrl(stack, result.url)
+                player.sendSystemMessage(Component.translatable("thestreetism.spray.url.updated", result.url))
+                1
+            }
+        }
     }
 
     private fun setSpraySize(player: net.minecraft.server.level.ServerPlayer, length: Float, width: Float): Int {
         val stack = player.mainHandItem
         if (stack.item != ModItems.SPRAY_CAN) {
-            player.sendSystemMessage(Component.literal("请先把喷漆罐拿在主手。"))
+            player.sendSystemMessage(Component.translatable("thestreetism.spray.not_holding"))
             return 0
         }
 
         SprayCanItem.setGraffitiSize(stack, length, width)
-        player.sendSystemMessage(Component.literal("喷漆尺寸已设置为 ${length}x${width}"))
+        player.sendSystemMessage(Component.translatable("thestreetism.spray.size.updated", length, width))
         return 1
     }
 }

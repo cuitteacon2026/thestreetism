@@ -4,6 +4,7 @@ import cuitteacon26.thestreetism.Thestreetism
 import cuitteacon26.thestreetism.banner.BannerTextAlignment
 import cuitteacon26.thestreetism.color.RgbColor
 import cuitteacon26.thestreetism.entity.BannerEntity
+import cuitteacon26.thestreetism.remote.RemoteImageUrl
 import com.mojang.blaze3d.platform.NativeImage
 import net.minecraft.client.Minecraft
 import net.minecraft.client.renderer.texture.DynamicTexture
@@ -16,6 +17,7 @@ import java.awt.font.FontRenderContext
 import java.awt.font.LineBreakMeasurer
 import java.awt.font.TextAttribute
 import java.awt.image.BufferedImage
+import java.io.IOException
 import java.net.HttpURLConnection
 import java.net.URI
 import java.security.MessageDigest
@@ -25,6 +27,7 @@ import java.util.Base64
 import java.util.Locale
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.ConcurrentHashMap
+import javax.imageio.ImageIO
 
 object GraffitiTextures {
     private val loading = ConcurrentHashMap.newKeySet<String>()
@@ -311,26 +314,90 @@ object GraffitiTextures {
     }
 
     private fun download(url: String): NativeImage {
-        val uri = URI(url)
-        val scheme = uri.scheme?.lowercase(Locale.ROOT)
-        require(scheme == "http" || scheme == "https") {
-            "Only HTTP/HTTPS URLs are supported"
+        val normalized = when (val result = RemoteImageUrl.normalize(url)) {
+            is RemoteImageUrl.Result.Valid -> result.url
+            is RemoteImageUrl.Result.Invalid -> throw IllegalArgumentException("Rejected graffiti URL: ${result.translationKey}")
         }
 
-        val connection = uri.toURL().openConnection() as HttpURLConnection
-        connection.instanceFollowRedirects = true
-        connection.connectTimeout = CONNECT_TIMEOUT_MILLIS
-        connection.readTimeout = READ_TIMEOUT_MILLIS
-        connection.setRequestProperty("User-Agent", USER_AGENT)
-        connection.requestMethod = "GET"
-        connection.doInput = true
-
-        return try {
-            connection.inputStream.buffered().use { stream ->
-                NativeImage.read(LimitedInputStream(stream, MAX_DOWNLOAD_BYTES))
+        // HttpURLConnection refuses to auto-follow http <-> https hops, which is
+        // exactly what most image hosts do. Walk the redirect chain by hand.
+        var current = URI(normalized)
+        var redirects = 0
+        while (true) {
+            val connection = (current.toURL().openConnection() as HttpURLConnection).apply {
+                instanceFollowRedirects = false
+                connectTimeout = CONNECT_TIMEOUT_MILLIS
+                readTimeout = READ_TIMEOUT_MILLIS
+                setRequestProperty("User-Agent", USER_AGENT)
+                setRequestProperty("Accept", ACCEPT_HEADER)
+                requestMethod = "GET"
+                doInput = true
             }
-        } finally {
-            connection.disconnect()
+
+            try {
+                val status = connection.responseCode
+                if (status in 300..399) {
+                    val location = connection.getHeaderField("Location")
+                        ?: throw IllegalStateException("Redirect without Location header")
+                    if (++redirects > MAX_REDIRECTS) {
+                        throw IllegalStateException("Too many redirects for graffiti texture")
+                    }
+                    current = current.resolve(location)
+                    val scheme = current.scheme?.lowercase(Locale.ROOT)
+                    check(scheme == "http" || scheme == "https") {
+                        "Redirect left HTTP/HTTPS: $current"
+                    }
+                    continue
+                }
+
+                check(status in 200..299) { "Image host returned HTTP $status" }
+
+                val contentType = connection.contentType?.substringBefore(';')?.trim()?.lowercase(Locale.ROOT)
+                check(contentType == null || contentType in ACCEPTED_CONTENT_TYPES || contentType.startsWith("image/")) {
+                    "Unsupported content type: $contentType"
+                }
+
+                val declaredLength = connection.contentLengthLong
+                check(declaredLength <= MAX_DOWNLOAD_BYTES) {
+                    "Remote graffiti texture declares $declaredLength bytes, over the ${MAX_DOWNLOAD_BYTES} limit"
+                }
+
+                return connection.inputStream.buffered().use { stream ->
+                    decodeRemoteImage(LimitedInputStream(stream, MAX_DOWNLOAD_BYTES))
+                }
+            } finally {
+                connection.disconnect()
+            }
+        }
+    }
+
+    /**
+     * NativeImage.read validates a PNG header before invoking STB, so it rejects
+     * otherwise valid JPEG/GIF/BMP responses. Decode with ImageIO first, then
+     * copy to Minecraft's native RGBA texture format.
+     */
+    private fun decodeRemoteImage(stream: java.io.InputStream): NativeImage {
+        val buffered = ImageIO.read(stream) ?: throw IOException("Remote resource is not a supported image")
+        val width = buffered.width
+        val height = buffered.height
+        check(width in 1..MAX_REMOTE_IMAGE_DIMENSION && height in 1..MAX_REMOTE_IMAGE_DIMENSION) {
+            "Remote graffiti dimensions ${width}x${height} exceed the ${MAX_REMOTE_IMAGE_DIMENSION}px limit"
+        }
+        check(width.toLong() * height <= MAX_REMOTE_IMAGE_PIXELS) {
+            "Remote graffiti has too many pixels: ${width}x${height}"
+        }
+
+        val image = NativeImage(NativeImage.Format.RGBA, width, height, false)
+        return try {
+            for (y in 0 until height) {
+                for (x in 0 until width) {
+                    image.setPixel(x, y, RgbColor.argbToAbgr(buffered.getRGB(x, y)))
+                }
+            }
+            image
+        } catch (error: Throwable) {
+            image.close()
+            throw error
         }
     }
 
@@ -411,9 +478,17 @@ object GraffitiTextures {
         }
     }
 
-    private const val CONNECT_TIMEOUT_MILLIS = 5_000
-    private const val READ_TIMEOUT_MILLIS = 10_000
-    private const val MAX_DOWNLOAD_BYTES = 8L * 1024L * 1024L
+    private const val CONNECT_TIMEOUT_MILLIS = 8_000
+    private const val READ_TIMEOUT_MILLIS = 15_000
+    private const val MAX_DOWNLOAD_BYTES = 16L * 1024L * 1024L
+    private const val MAX_REMOTE_IMAGE_DIMENSION = 4_096
+    private const val MAX_REMOTE_IMAGE_PIXELS = 4_194_304L
+    private const val MAX_REDIRECTS = 5
+    private const val ACCEPT_HEADER = "image/avif,image/webp,image/apng,image/png,image/jpeg,image/gif,image/*,*/*;q=0.8"
+    private val ACCEPTED_CONTENT_TYPES = setOf(
+        "application/octet-stream",
+        "binary/octet-stream",
+    )
     private val SYSTEM_FONT_PREFERENCE = listOf("DengXian", "SimSun", "Microsoft YaHei", "等线", "宋体", "微软雅黑")
     private const val USER_AGENT = "thestreetism-graffiti-loader"
     private const val BANNER_KEY_PREFIX = "banner:"

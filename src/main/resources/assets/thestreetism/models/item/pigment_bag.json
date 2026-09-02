@@ -1,8 +1,6 @@
 {
-  "model": {
-    "type": "minecraft:item/generated",
-    "textures": {
-      "layer0": "thestreetism:item/pigment_bag"
-    }
+  "parent": "minecraft:item/generated",
+  "textures": {
+    "layer0": "thestreetism:item/pigment_bag"
   }
 }

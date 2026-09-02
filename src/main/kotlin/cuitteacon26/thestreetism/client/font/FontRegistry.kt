@@ -12,7 +12,20 @@ object FontRegistry {
 
     private val fontsDir: Path = FMLPaths.CONFIGDIR.get().resolve("streetism").resolve("fonts")
     private val loadedFonts = mutableMapOf<String, Font>()
-    private val atlasCache = mutableMapOf<AtlasKey, FontAtlasBuilder.RenderedAtlas>()
+
+    /**
+     * Bounded LRU of uploaded atlases. Every distinct flag text produces a
+     * 1024xN GPU texture, so an unbounded map here leaks video memory for the
+     * whole session as players edit their flags. Evicted atlases are released
+     * from the texture manager rather than merely dropped.
+     */
+    private val atlasCache = object : LinkedHashMap<AtlasKey, FontAtlasBuilder.RenderedAtlas>(16, 0.75f, true) {
+        override fun removeEldestEntry(eldest: MutableMap.MutableEntry<AtlasKey, FontAtlasBuilder.RenderedAtlas>): Boolean {
+            if (size <= MAX_CACHED_ATLASES) return false
+            releaseAtlas(eldest.value)
+            return true
+        }
+    }
 
     val fontIds: List<String>
         get() = buildList {
@@ -38,9 +51,10 @@ object FontRegistry {
 
     fun getAtlas(fontId: String, richTextJson: String, styleJson: String, flagWidth: Int, flagHeight: Int): FontAtlasBuilder.RenderedAtlas? {
         val key = AtlasKey(fontId, richTextJson.hashCode(), styleJson.hashCode(), flagWidth, flagHeight)
-        return atlasCache.getOrPut(key) {
-            FontAtlasBuilder.buildAndUpload(fontId, richTextJson, styleJson, flagWidth, flagHeight) ?: return null
-        }
+        atlasCache[key]?.let { return it }
+        val built = FontAtlasBuilder.buildAndUpload(fontId, richTextJson, styleJson, flagWidth, flagHeight) ?: return null
+        atlasCache[key] = built
+        return built
     }
 
     fun resolveFont(fontId: String, size: Float, bold: Boolean, italic: Boolean): Font {
@@ -50,9 +64,12 @@ object FontRegistry {
     }
 
     private fun clearAtlasCache() {
-        val textureManager = runCatching { Minecraft.getInstance().textureManager }.getOrNull()
-        atlasCache.values.forEach { atlas -> textureManager?.release(atlas.textureId) }
+        atlasCache.values.forEach(::releaseAtlas)
         atlasCache.clear()
+    }
+
+    private fun releaseAtlas(atlas: FontAtlasBuilder.RenderedAtlas) {
+        runCatching { Minecraft.getInstance().textureManager }.getOrNull()?.release(atlas.textureId)
     }
 
     private fun loadFont(path: Path) {
@@ -71,4 +88,7 @@ object FontRegistry {
         val width: Int,
         val height: Int,
     )
+
+    /** Upper bound on live flag atlases; keeps GPU memory flat during editing. */
+    private const val MAX_CACHED_ATLASES = 24
 }

@@ -15,7 +15,7 @@ object ModCreativeTabs {
     val THESTREETISM by REGISTRY.register("thestreetism", java.util.function.Supplier {
         CreativeModeTab.builder()
             .title(Component.translatable("itemGroup.thestreetism.thestreetism"))
-            .icon { ItemStack(ModItems.BANNER) }
+            .icon { ItemStack(ModItems.SPRAY_CAN) }
             .displayItems { _, output ->
                 output.accept(ModItems.SPRAY_CAN)
                 output.accept(ModItems.PAINT_SCRAPER)

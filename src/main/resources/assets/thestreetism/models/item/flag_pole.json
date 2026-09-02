@@ -1,1 +1,6 @@
-{ "parent": "thestreetism:block/flag_pole" }
+{
+  "parent": "minecraft:item/generated",
+  "textures": {
+    "layer0": "thestreetism:item/flag_pole"
+  }
+}

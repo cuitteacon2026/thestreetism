@@ -31,5 +31,13 @@
   "thestreetism.gui.flag_editor.align_right": "Right",
   "thestreetism.gui.flag_editor.mode_text": "Text",
   "thestreetism.gui.flag_editor.mode_json": "JSON",
-  "thestreetism.gui.flag_editor.json_error": "Invalid component JSON."
+  "thestreetism.gui.flag_editor.json_error": "Invalid component JSON.",
+  "thestreetism.spray.not_holding": "Hold a spray can in your main hand first.",
+  "thestreetism.spray.url.empty": "Provide an image link.",
+  "thestreetism.spray.url.too_long": "That link is too long.",
+  "thestreetism.spray.url.malformed": "That link could not be parsed.",
+  "thestreetism.spray.url.scheme": "Graffiti images must use an HTTP/HTTPS link.",
+  "thestreetism.spray.url.host": "That link has no host name.",
+  "thestreetism.spray.url.updated": "Spray can image set to %s",
+  "thestreetism.spray.size.updated": "Spray size set to %sx%s"
 }

@@ -19,9 +19,9 @@ import net.minecraft.world.level.Level
 import net.minecraft.world.level.storage.ValueInput
 import net.minecraft.world.level.storage.ValueOutput
 import net.minecraft.world.phys.Vec3
+import kotlin.math.abs
 import kotlin.math.cos
 import kotlin.math.hypot
-import kotlin.math.min
 import kotlin.math.sin
 
 class SkateboardEntity(type: EntityType<out SkateboardEntity>, level: Level) : VehicleEntity(type, level) {
@@ -58,55 +58,93 @@ class SkateboardEntity(type: EntityType<out SkateboardEntity>, level: Level) : V
         )
     }
 
+    /**
+     * Momentum-preserving skateboard physics.
+     *
+     * Velocity is kept in world space and decomposed against the board's own
+     * axes each tick. Steering rotates the deck without touching the existing
+     * momentum, so the board keeps travelling along its old heading until wheel
+     * grip pulls it back in line. That gap between "where it points" and "where
+     * it moves" is what produces carving, drift and coasting inertia.
+     */
     private fun tickMovement(controls: Controls) {
         val grounded = onGround()
-        var movement = deltaMovement
-        var horizontalX = movement.x
-        var horizontalZ = movement.z
-        var horizontalSpeed = hypot(horizontalX, horizontalZ)
+        val movement = deltaMovement
+        val entrySpeed = hypot(movement.x, movement.z)
 
-        val turnInput = (if (controls.right) 1 else 0) - (if (controls.left) 1 else 0)
-        if (grounded && turnInput != 0 && horizontalSpeed > MIN_STEERING_SPEED) {
-            val speedRatio = (horizontalSpeed / MAX_SPEED).coerceIn(0.0, 1.0)
-            val turnDegrees = turnInput * (MIN_TURN_DEGREES + (MAX_TURN_DEGREES - MIN_TURN_DEGREES) * speedRatio)
-            yRot = Mth.wrapDegrees(yRot + turnDegrees.toFloat())
-            val forward = forwardVector()
-            horizontalX = forward.x * horizontalSpeed
-            horizontalZ = forward.z * horizontalSpeed
-        }
+        steer(controls, entrySpeed, grounded)
+
+        // Decompose against the (possibly just-rotated) deck axes.
+        val forward = forwardVector()
+        val right = Vec3(-forward.z, 0.0, forward.x)
+        var alongDeck = movement.x * forward.x + movement.z * forward.z
+        var acrossDeck = movement.x * right.x + movement.z * right.z
 
         if (grounded && controls.forward && !forwardWasDown) {
-            val forward = forwardVector()
-            horizontalX += forward.x * KICK_IMPULSE
-            horizontalZ += forward.z * KICK_IMPULSE
-            horizontalSpeed = hypot(horizontalX, horizontalZ)
-            if (horizontalSpeed > MAX_SPEED) {
-                val scale = MAX_SPEED / horizontalSpeed
-                horizontalX *= scale
-                horizontalZ *= scale
-            }
+            alongDeck = (alongDeck + KICK_IMPULSE).coerceAtMost(MAX_SPEED)
         }
         forwardWasDown = controls.forward
 
         if (grounded && controls.brake) {
-            horizontalX *= BRAKE_FACTOR
-            horizontalZ *= BRAKE_FACTOR
+            alongDeck *= BRAKE_FACTOR
+            acrossDeck *= BRAKE_FACTOR
+        }
+
+        // Wheels resist sideways travel. Part of the scrubbed sideways speed is
+        // handed back to forward travel so a clean carve keeps its momentum
+        // instead of bleeding away.
+        val keptAcross = acrossDeck * (if (grounded) LATERAL_GRIP else AIR_LATERAL_GRIP)
+        if (grounded) {
+            val scrubbed = abs(acrossDeck) - abs(keptAcross)
+            alongDeck += scrubbed * CARVE_RECOVERY * (if (alongDeck < 0.0) -1.0 else 1.0)
+        }
+        acrossDeck = keptAcross
+
+        val drag = if (grounded) GROUND_DRAG else AIR_DRAG
+        alongDeck *= drag
+        acrossDeck *= drag
+
+        if (hypot(alongDeck, acrossDeck) < STOP_SPEED) {
+            alongDeck = 0.0
+            acrossDeck = 0.0
+        }
+
+        val exitSpeed = hypot(alongDeck, acrossDeck)
+        if (exitSpeed > MAX_SPEED) {
+            val scale = MAX_SPEED / exitSpeed
+            alongDeck *= scale
+            acrossDeck *= scale
         }
 
         val verticalSpeed = if (isNoGravity) movement.y else movement.y - gravity
-        setDeltaMovement(horizontalX, verticalSpeed, horizontalZ)
+        setDeltaMovement(
+            forward.x * alongDeck + right.x * acrossDeck,
+            verticalSpeed,
+            forward.z * alongDeck + right.z * acrossDeck,
+        )
         move(MoverType.SELF, deltaMovement)
 
-        movement = deltaMovement
-        val drag = if (onGround()) GROUND_DRAG else AIR_DRAG
-        horizontalX = movement.x * drag
-        horizontalZ = movement.z * drag
-        if (hypot(horizontalX, horizontalZ) < STOP_SPEED) {
-            horizontalX = 0.0
-            horizontalZ = 0.0
-        }
-        val resolvedVerticalSpeed = if (onGround() && movement.y < 0.0) 0.0 else movement.y
-        setDeltaMovement(horizontalX, resolvedVerticalSpeed, horizontalZ)
+        // Preserve whatever the collision pass left behind; only settle the
+        // vertical component so resting on the ground does not accumulate fall
+        // speed forever.
+        val resolved = deltaMovement
+        val resolvedVerticalSpeed = if (onGround() && resolved.y < 0.0) 0.0 else resolved.y
+        setDeltaMovement(resolved.x, resolvedVerticalSpeed, resolved.z)
+    }
+
+    /**
+     * Rotate the deck. Turn rate tightens at low speed and widens as the board
+     * picks up pace, which keeps the effective turning circle believable rather
+     * than letting it pivot on a coin at full tilt.
+     */
+    private fun steer(controls: Controls, speed: Double, grounded: Boolean) {
+        val turnInput = (if (controls.right) 1 else 0) - (if (controls.left) 1 else 0)
+        if (turnInput == 0 || speed <= MIN_STEERING_SPEED) return
+
+        val speedRatio = (speed / MAX_SPEED).coerceIn(0.0, 1.0)
+        val authority = if (grounded) 1.0 else AIR_STEERING_AUTHORITY
+        val turnDegrees = turnInput * (MAX_TURN_DEGREES - (MAX_TURN_DEGREES - MIN_TURN_DEGREES) * speedRatio) * authority
+        yRot = Mth.wrapDegrees(yRot + turnDegrees.toFloat())
     }
 
     private fun forwardVector(): Vec3 {
@@ -169,13 +207,27 @@ class SkateboardEntity(type: EntityType<out SkateboardEntity>, level: Level) : V
     companion object {
         private const val KICK_IMPULSE = 0.16
         private const val MAX_SPEED = 0.72
-        private const val GROUND_DRAG = 0.985
+        private const val GROUND_DRAG = 0.988
         private const val AIR_DRAG = 0.997
         private const val BRAKE_FACTOR = 0.62
         private const val STOP_SPEED = 0.006
         private const val MIN_STEERING_SPEED = 0.015
-        private const val MIN_TURN_DEGREES = 1.5
-        private const val MAX_TURN_DEGREES = 4.0
+
+        /** Turn rate at full speed (wide arc) and at crawling speed (tight pivot). */
+        private const val MIN_TURN_DEGREES = 1.6
+        private const val MAX_TURN_DEGREES = 4.5
+
+        /** Fraction of sideways velocity the wheels keep each tick. Lower = more grip. */
+        private const val LATERAL_GRIP = 0.55
+
+        /** Airborne the wheels bite nothing, so sideways drift persists. */
+        private const val AIR_LATERAL_GRIP = 0.97
+
+        /** Share of scrubbed sideways speed converted back into forward drive. */
+        private const val CARVE_RECOVERY = 0.5
+
+        /** Steering effectiveness while airborne. */
+        private const val AIR_STEERING_AUTHORITY = 0.35
         private const val GRAVITY = 0.08
         private const val MAX_STEP_HEIGHT = 0.6f
         private const val RIDER_HEIGHT_OFFSET = 0.04

@@ -69,11 +69,14 @@ class FlagRenderer(ctx: BlockEntityRendererProvider.Context) : BlockEntityRender
         }
 
         val time = (state.gameTime + state.partialTicks) / 20f
-        val animated = animCache.getOrPut(state.uuid) { Array(mesh.vertexCount) { Vec3.ZERO } }
-        if (animated.size != mesh.vertexCount) {
-            animCache[state.uuid] = Array(mesh.vertexCount) { Vec3.ZERO }
+        // Reuse the per-flag scratch buffer, reallocating only when the flag was
+        // resized. The cache is bounded so unloaded flags cannot accumulate.
+        val cached = animCache[state.uuid]
+        val animationTarget = if (cached != null && cached.size == mesh.vertexCount) {
+            cached
+        } else {
+            Array(mesh.vertexCount) { Vec3.ZERO }.also { animCache[state.uuid] = it }
         }
-        val animationTarget = animCache[state.uuid] ?: Array(mesh.vertexCount) { Vec3.ZERO }
 
         FlagAnimation.animate(mesh.basePositions, animationTarget, mesh.cols, mesh.rows, time, state.seed, normal)
 
@@ -102,8 +105,22 @@ class FlagRenderer(ctx: BlockEntityRendererProvider.Context) : BlockEntityRender
     }
 
     companion object {
+        /**
+         * Distinct flag sizes are few, so a plain map is fine here.
+         */
         private val meshCache = HashMap<MeshCacheKey, FlagMeshBuilder.Mesh>()
-        private val animCache = HashMap<java.util.UUID, Array<Vec3>>()
+
+        /**
+         * Per-flag animation scratch buffers, bounded as an LRU. Flags that get
+         * broken or stream out of view would otherwise keep their vertex arrays
+         * alive for the rest of the session.
+         */
+        private val animCache = object : LinkedHashMap<java.util.UUID, Array<Vec3>>(16, 0.75f, true) {
+            override fun removeEldestEntry(eldest: MutableMap.MutableEntry<java.util.UUID, Array<Vec3>>): Boolean =
+                size > MAX_ANIMATED_FLAGS
+        }
+
+        private const val MAX_ANIMATED_FLAGS = 64
     }
 
     private data class MeshCacheKey(val w: Int, val h: Int, val plane: Plane)

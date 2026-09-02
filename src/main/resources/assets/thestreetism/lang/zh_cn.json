@@ -31,5 +31,13 @@
   "thestreetism.gui.flag_editor.align_right": "右对齐",
   "thestreetism.gui.flag_editor.mode_text": "文本",
   "thestreetism.gui.flag_editor.mode_json": "JSON",
-  "thestreetism.gui.flag_editor.json_error": "组件 JSON 无效。"
+  "thestreetism.gui.flag_editor.json_error": "组件 JSON 无效。",
+  "thestreetism.spray.not_holding": "请先把喷漆罐拿在主手。",
+  "thestreetism.spray.url.empty": "请提供图片链接。",
+  "thestreetism.spray.url.too_long": "链接过长。",
+  "thestreetism.spray.url.malformed": "无法解析该链接。",
+  "thestreetism.spray.url.scheme": "喷漆图片必须使用 HTTP/HTTPS 链接。",
+  "thestreetism.spray.url.host": "该链接缺少主机名。",
+  "thestreetism.spray.url.updated": "喷漆图片已设置为 %s",
+  "thestreetism.spray.size.updated": "喷漆尺寸已设置为 %sx%s"
 }
