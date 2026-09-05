@@ -98,7 +98,7 @@ class FlagRenderer(ctx: BlockEntityRendererProvider.Context) : BlockEntityRender
                     val v0 = row.toFloat() / mesh.rows
                     val v1 = (row + 1).toFloat() / mesh.rows
                     addQuad(buf, pose, tl, tr, br, bl, u0, u1, v0, v1, state.lightCoords, normal)
-                    addQuad(buf, pose, tr, tl, bl, br, u1, u0, v0, v1, state.lightCoords, normal.scale(-1.0))
+                    addQuad(buf, pose, tr, tl, bl, br, u0, u1, v0, v1, state.lightCoords, normal.scale(-1.0))
                 }
             }
         }
