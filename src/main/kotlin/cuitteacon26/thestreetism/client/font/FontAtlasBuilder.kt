@@ -234,7 +234,7 @@ object FontAtlasBuilder {
         )
         for (y in 0 until image.height) {
             for (x in 0 until image.width) {
-                nativeImage.setPixel(x, y, RgbColor.argbToAbgr(image.getRGB(x, y)))
+                nativeImage.setPixel(x, y, image.getRGB(x, y))
             }
         }
 
