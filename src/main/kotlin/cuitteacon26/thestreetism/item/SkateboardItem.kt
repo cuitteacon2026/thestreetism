@@ -30,7 +30,11 @@ class SkateboardItem(properties: Properties) : Item(properties) {
 
         if (!level.isClientSide) {
             skateboard.applyComponentsFromItemStack(context.itemInHand)
-            level.addFreshEntity(skateboard)
+            if (!level.addFreshEntity(skateboard)) return InteractionResult.FAIL
+            if (!player.startRiding(skateboard, true, true)) {
+                skateboard.discard()
+                return InteractionResult.FAIL
+            }
             context.itemInHand.consume(1, player)
             level.gameEvent(player, GameEvent.ENTITY_PLACE, location)
             level.playSound(null, location.x, location.y, location.z, SoundEvents.WOOD_PLACE, player.soundSource, 0.8f, 1.1f)

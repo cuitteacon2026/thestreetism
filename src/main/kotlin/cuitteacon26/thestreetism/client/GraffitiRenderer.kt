@@ -6,6 +6,7 @@ import cuitteacon26.thestreetism.banner.BannerTextAlignment
 import cuitteacon26.thestreetism.entity.BannerEntity
 import cuitteacon26.thestreetism.entity.GraffitiEntity
 import cuitteacon26.thestreetism.entity.ModEntities
+import cuitteacon26.thestreetism.entity.SkateboardEntity
 import cuitteacon26.thestreetism.client.font.FontRegistry
 import cuitteacon26.thestreetism.client.gui.BannerEditorScreen
 import cuitteacon26.thestreetism.client.render.SkateboardRenderer
@@ -16,12 +17,14 @@ import com.mojang.blaze3d.vertex.PoseStack
 import com.mojang.blaze3d.vertex.VertexConsumer
 import com.mojang.math.Axis
 import net.minecraft.client.Minecraft
+import net.minecraft.client.entity.ClientAvatarEntity
 import net.minecraft.client.gui.Font
 import net.minecraft.client.renderer.LevelRenderer
 import net.minecraft.client.renderer.SubmitNodeCollector
 import net.minecraft.client.renderer.entity.EntityRenderer
 import net.minecraft.client.renderer.entity.EntityRendererProvider
 import net.minecraft.client.renderer.entity.state.EntityRenderState
+import net.minecraft.client.renderer.entity.state.AvatarRenderState
 import net.minecraft.client.renderer.rendertype.RenderTypes
 import net.minecraft.client.renderer.state.level.CameraRenderState
 import net.minecraft.client.renderer.texture.OverlayTexture
@@ -30,6 +33,8 @@ import net.minecraft.core.Direction
 import net.minecraft.network.chat.Component
 import net.minecraft.resources.Identifier
 import net.minecraft.util.FormattedCharSequence
+import net.minecraft.util.Mth
+import net.minecraft.world.entity.Avatar
 import net.minecraft.world.phys.BlockHitResult
 import net.minecraft.world.phys.HitResult
 import net.minecraft.world.phys.Vec3
@@ -39,6 +44,8 @@ import net.neoforged.fml.common.EventBusSubscriber
 import net.neoforged.fml.event.lifecycle.FMLClientSetupEvent
 import net.neoforged.neoforge.client.event.RegisterMenuScreensEvent
 import net.neoforged.neoforge.client.event.SubmitCustomGeometryEvent
+import net.neoforged.neoforge.client.renderstate.AvatarRenderStateModifier
+import net.neoforged.neoforge.client.renderstate.RegisterRenderStateModifiersEvent
 import net.neoforged.neoforge.common.NeoForge
 
 object ClientSetup {
@@ -64,6 +71,21 @@ object ClientSetup {
     fun registerMenuScreens(event: RegisterMenuScreensEvent) {
         event.register(ModMenus.BANNER_EDITOR, ::BannerEditorScreen)
     }
+
+    fun registerRenderStateModifiers(event: RegisterRenderStateModifiersEvent) {
+        event.registerAvatarEntityModifier(object : AvatarRenderStateModifier() {
+            override fun <T> accept(avatar: T, renderState: AvatarRenderState) where T : Avatar, T : ClientAvatarEntity {
+                val skateboard = avatar.vehicle as? SkateboardEntity ?: return
+                val headRotation = renderState.bodyRot + renderState.yRot
+                renderState.bodyRot = Mth.wrapDegrees(skateboard.getYRot(renderState.partialTick) + 90.0f)
+                renderState.yRot = Mth.clamp(Mth.wrapDegrees(headRotation - renderState.bodyRot), -85.0f, 85.0f)
+                renderState.walkAnimationPos = 0.0f
+                renderState.walkAnimationSpeed = SKATEBOARD_STANCE_AMOUNT
+            }
+        })
+    }
+
+    private const val SKATEBOARD_STANCE_AMOUNT = 0.18f
 }
 
 class GraffitiRenderState : EntityRenderState() {
