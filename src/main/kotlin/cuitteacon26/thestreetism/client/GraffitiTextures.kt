@@ -205,7 +205,7 @@ object GraffitiTextures {
         val image = NativeImage(NativeImage.Format.RGBA, pixelWidth, pixelHeight, false)
         for (y in 0 until pixelHeight) {
             for (x in 0 until pixelWidth) {
-                image.setPixel(x, y, RgbColor.argbToAbgr(buffered.getRGB(x, y)))
+                image.setPixel(x, y, buffered.getRGB(x, y))
             }
         }
         return image
@@ -391,7 +391,7 @@ object GraffitiTextures {
         return try {
             for (y in 0 until height) {
                 for (x in 0 until width) {
-                    image.setPixel(x, y, RgbColor.argbToAbgr(buffered.getRGB(x, y)))
+                    image.setPixel(x, y, buffered.getRGB(x, y))
                 }
             }
             image
