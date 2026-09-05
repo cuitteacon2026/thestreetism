@@ -65,6 +65,7 @@ object Thestreetism {
     private fun registerClientSetup() {
         MOD_BUS.addListener(ClientSetup::onClientSetup)
         MOD_BUS.addListener(ClientSetup::registerMenuScreens)
+        MOD_BUS.addListener(ClientSetup::registerRenderStateModifiers)
         ClientSetup.register()
     }
 }
