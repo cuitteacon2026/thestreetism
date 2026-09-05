@@ -235,7 +235,7 @@ private fun submitBannerFace(
         light,
         -1,
         reverse,
-        true,
+        !reverse,
     )
 }
 
@@ -263,7 +263,7 @@ private fun submitBannerTextFallback(
     SurfaceRenderUtil.orientToFace(poseStack, state.placement.normal)
     if (reverse) poseStack.mulPose(Axis.YP.rotationDegrees(180.0f))
     poseStack.translate(-state.placement.length / 2.0, state.placement.height / 2.0, 0.0)
-    poseStack.scale(scale, -scale, scale)
+    poseStack.scale(if (reverse) -scale else scale, -scale, scale)
     val pixelWidth = state.placement.length / scale
     val startY = ((state.placement.height / scale - wrapped.size * font.lineHeight) / 2.0f).coerceAtLeast(0.0f)
     wrapped.forEachIndexed { index, line ->
