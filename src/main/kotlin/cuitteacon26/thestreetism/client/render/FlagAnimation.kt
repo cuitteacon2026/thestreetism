@@ -16,8 +16,7 @@ object FlagAnimation {
 
     private const val SPEED = 1.8f
     private const val PHASE_X = 2.1f
-    private const val PHASE_Y = 0.7f
-    private const val MAX_AMPLITUDE = 0.18f
+    private const val MAX_AMPLITUDE = 0.06f
 
     /**
      * Apply animation to [basePositions], writing displaced positions into [out].
@@ -43,7 +42,8 @@ object FlagAnimation {
                 val u = col.toFloat() / cols
                 // Amplitude: near pole (u≈0) → near zero; far from pole (u≈1) → max
                 val amplitude = MAX_AMPLITUDE * u * u
-                val phase = time * SPEED + u * PHASE_X + (row.toFloat() / rows) * PHASE_Y + seedOffset
+                // 波动在高度方向一致（取消纵向相位），自由边轮廓保持规整
+                val phase = time * SPEED + u * PHASE_X + seedOffset
                 val displacement = sin(phase.toDouble()).toFloat() * amplitude
                 val base = basePositions[idx]
                 out[idx] = base.add(normal.scale(displacement.toDouble()))
