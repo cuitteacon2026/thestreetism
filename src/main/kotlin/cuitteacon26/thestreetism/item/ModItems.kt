@@ -63,6 +63,10 @@ class SprayCanItem(properties: Properties) : Item(properties) {
         val size = selectedSize(context.itemInHand)
         val position = context.clickLocation
         val graffiti = GraffitiEntity(level, position, targetPos, face, textureKey, size.first, size.second, player.uuid)
+        // 天花板/地板面的涂鸦方向跟随玩家的朝向
+        if (face == Direction.UP || face == Direction.DOWN) {
+            graffiti.setGraffitiRotation(player.yRot)
+        }
         if (!level.noBlockCollision(graffiti, graffiti.boundingBox) || !level.noBorderCollision(graffiti, graffiti.boundingBox) || !graffiti.hasSupport()) {
             return InteractionResult.FAIL
         }
