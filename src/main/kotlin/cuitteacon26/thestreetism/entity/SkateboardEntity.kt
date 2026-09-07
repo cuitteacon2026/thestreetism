@@ -202,9 +202,15 @@ class SkateboardEntity(type: EntityType<out SkateboardEntity>, level: Level) : V
     }
 
     override fun interact(player: Player, hand: InteractionHand, location: Vec3): InteractionResult {
+        // 潜行右键：把滑板收回成物品（无论是否坐在上面）
+        if (player.isSecondaryUseActive) {
+            if (!level().isClientSide && !isRemoved) {
+                pendingFoldPlayer = player as? ServerPlayer
+            }
+            return InteractionResult.SUCCESS
+        }
         val parentResult = super.interact(player, hand, location)
         if (parentResult != InteractionResult.PASS) return parentResult
-        if (player.isSecondaryUseActive) return InteractionResult.PASS
         if (!level().isClientSide && !player.startRiding(this)) return InteractionResult.PASS
         return InteractionResult.SUCCESS
     }
