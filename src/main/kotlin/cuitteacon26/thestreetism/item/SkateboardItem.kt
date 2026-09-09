@@ -16,6 +16,10 @@ import kotlin.math.sin
 
 class SkateboardItem(properties: Properties) : Item(properties) {
     override fun use(level: Level, player: Player, hand: InteractionHand): InteractionResult {
+        // A board is a single-seat vehicle. Refuse a second placement while the
+        // player is riding anything so force-dismounting cannot leave an orphaned
+        // board (or unexpectedly displace a horse/boat).
+        if (player.isPassenger) return InteractionResult.FAIL
         if (level.isClientSide) return InteractionResult.SUCCESS
 
         val radians = Math.toRadians(player.yRot.toDouble())
