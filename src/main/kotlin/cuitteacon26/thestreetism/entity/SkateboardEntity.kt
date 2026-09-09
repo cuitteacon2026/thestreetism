@@ -61,7 +61,9 @@ class SkateboardEntity(type: EntityType<out SkateboardEntity>, level: Level) : V
 
         pendingFoldPlayer?.let { player ->
             pendingFoldPlayer = null
-            foldIntoItem(player)
+            if (player.isAlive && player.level() === level() && (firstPassenger == null || firstPassenger === player)) {
+                foldIntoItem(player)
+            }
             return
         }
 
@@ -202,10 +204,13 @@ class SkateboardEntity(type: EntityType<out SkateboardEntity>, level: Level) : V
     }
 
     override fun interact(player: Player, hand: InteractionHand, location: Vec3): InteractionResult {
-        // 潜行右键：把滑板收回成物品（无论是否坐在上面）
+        // Sneak-right-click retrieves an empty board or the board being ridden by
+        // this player. Never let a bystander remove somebody else's ride.
         if (player.isSecondaryUseActive) {
+            if (firstPassenger != null && firstPassenger !== player) return InteractionResult.FAIL
             if (!level().isClientSide && !isRemoved) {
-                pendingFoldPlayer = player as? ServerPlayer
+                val serverPlayer = player as? ServerPlayer ?: return InteractionResult.FAIL
+                requestFold(serverPlayer)
             }
             return InteractionResult.SUCCESS
         }
@@ -221,7 +226,7 @@ class SkateboardEntity(type: EntityType<out SkateboardEntity>, level: Level) : V
 
     override fun removePassenger(passenger: Entity) {
         val foldingPlayer = (passenger as? ServerPlayer)?.takeIf {
-            !level().isClientSide && !isRemoved && it.isShiftKeyDown
+            !level().isClientSide && !isRemoved && it.isAlive && it.isShiftKeyDown
         }
         super.removePassenger(passenger)
         if (!isRemoved && foldingPlayer != null) {
@@ -267,6 +272,14 @@ class SkateboardEntity(type: EntityType<out SkateboardEntity>, level: Level) : V
 
     private fun foldIntoItem(player: ServerPlayer) {
         if (isRemoved) return
+        if (firstPassenger != null && firstPassenger !== player) return
+
+        // Detach before removing the entity. This keeps the server and client
+        // vehicle references consistent when retrieval is requested while riding.
+        if (firstPassenger === player) {
+            player.stopRiding()
+            pendingFoldPlayer = null
+        }
 
         if (!player.abilities.instabuild) {
             val stack = createItemStack()
@@ -281,6 +294,15 @@ class SkateboardEntity(type: EntityType<out SkateboardEntity>, level: Level) : V
 
         level().playSound(null, x, y, z, SoundEvents.ITEM_PICKUP, player.soundSource, 0.35f, 1.4f)
         discard()
+    }
+
+    private fun requestFold(player: ServerPlayer) {
+        if (isRemoved || (firstPassenger != null && firstPassenger !== player)) return
+        if (firstPassenger === player) {
+            player.stopRiding()
+            pendingFoldPlayer = null
+        }
+        pendingFoldPlayer = player
     }
 
     private fun createItemStack(): ItemStack = ItemStack(ModItems.SKATEBOARD).also { stack ->
